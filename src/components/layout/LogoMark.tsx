@@ -1,5 +1,5 @@
 import { cn } from "../../utils/cn";
-import pizzariaLogo from "../../../assets/logo-transparent.png";
+import pizzariaLogo from "../../assets/logo-transparent.png";
 
 type LogoMarkProps = {
   compact?: boolean;

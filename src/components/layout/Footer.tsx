@@ -12,7 +12,7 @@ export function Footer() {
           © {year} Helio3Tech. Todos os direitos reservados.
         </p>
         <p className="text-sm font-bold text-[var(--brand-primary)]">
-          Feito com carinho para cada copo.
+          Pizzas, esfihas e bebidas da Pizzaria BL.
         </p>
       </Container>
     </footer>
