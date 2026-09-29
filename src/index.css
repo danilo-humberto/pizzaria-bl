@@ -241,6 +241,23 @@ a {
     linear-gradient(135deg, var(--surface-raised), var(--hero-gradient-end));
 }
 
+@keyframes pizza-gentle-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.4deg);
+  }
+
+  50% {
+    transform: translateY(-7px) rotate(0.4deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pizza-hero-artwork {
+    animation: pizza-gentle-float 5s ease-in-out infinite;
+  }
+}
+
 .panel-shadow {
   box-shadow: var(--shadow-soft);
 }

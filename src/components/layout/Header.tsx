@@ -1,5 +1,6 @@
-import { Menu, ShoppingBasket, X } from "lucide-react";
+import { Menu, MessageCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { storeConfig } from "../../data/storeConfig";
 import { cn } from "../../utils/cn";
 import { Button } from "../ui/Button";
 import { Container } from "./Container";
@@ -7,7 +8,7 @@ import { LogoMark } from "./LogoMark";
 
 const navItems = [
   { href: "#inicio", label: "Início" },
-  { href: "#monte", label: "Monte o seu" },
+  { href: "#monte", label: "Montar pedido" },
   { href: "#contato", label: "Contato" },
 ];
 
@@ -69,13 +70,15 @@ export function Header() {
 
           <div className={cn("hidden items-center gap-2", isScrolled ? "lg:flex" : "md:flex")}>
             <Button
-              href="#monte"
+              href={storeConfig.contact.whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
               variant="leaf"
               size={isScrolled ? "sm" : "md"}
               className={cn("focus-visible:outline-[var(--focus-on-dark)]", isScrolled && "ml-1 rounded-full px-5")}
-              icon={<ShoppingBasket size={isScrolled ? 16 : 18} />}
+              icon={<MessageCircle size={isScrolled ? 16 : 18} />}
             >
-              Pedir agora
+              WhatsApp
             </Button>
           </div>
 
@@ -112,13 +115,15 @@ export function Header() {
               ))}
             </nav>
             <Button
-              href="#monte"
+              href={storeConfig.contact.whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
               variant="leaf"
               className="mt-3 w-full rounded-full focus-visible:outline-[var(--focus-on-dark)]"
-              icon={<ShoppingBasket size={18} />}
+              icon={<MessageCircle size={18} />}
               onClick={() => setIsOpen(false)}
             >
-              Pedir agora
+              Falar no WhatsApp
             </Button>
           </div>
         </div>

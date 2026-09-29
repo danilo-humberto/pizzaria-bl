@@ -12,4 +12,10 @@ export type StoreConfig = {
     sunday: string
   }
   paymentMethods: string[]
+  contact: {
+    phone: string
+    whatsappUrl: string
+    instagramHandle: string
+    instagramUrl: string
+  }
 }
