@@ -9,6 +9,10 @@ export type PizzaOption = MenuOption & {
   description: string;
 };
 
+export type HalfAndHalfPizzaOption = MenuOption & {
+  flavorIds: [string, string];
+};
+
 export const pizzaOrderRules = {
   size: "Grande",
   maxQuantityPerFlavorPerOrder: 5,
@@ -234,14 +238,14 @@ export const pizzas: PizzaOption[] = [
   },
 ];
 
-export const halfAndHalfPizzas: MenuOption[] = [
-  { id: "calabresa-mussarela", name: "Calabresa / Mussarela", price: 27 },
-  { id: "calabresa-presunto", name: "Calabresa / Presunto", price: 27 },
-  { id: "mussarela-presunto", name: "Mussarela / Presunto", price: 27 },
-  { id: "frango-mussarela", name: "Frango / Mussarela", price: 40 },
-  { id: "frango-calabresa", name: "Frango / Calabresa", price: 35 },
-  { id: "frango-portuguesa", name: "Frango / Portuguesa", price: 40 },
-  { id: "carne-de-sol-frango", name: "Carne de Sol / Frango", price: 40 },
+export const halfAndHalfPizzas: HalfAndHalfPizzaOption[] = [
+  { id: "calabresa-mussarela", name: "Calabresa / Mussarela", price: 27, flavorIds: ["calabresa", "mussarela"] },
+  { id: "calabresa-presunto", name: "Calabresa / Presunto", price: 27, flavorIds: ["calabresa", "presunto"] },
+  { id: "mussarela-presunto", name: "Mussarela / Presunto", price: 27, flavorIds: ["mussarela", "presunto"] },
+  { id: "frango-mussarela", name: "Frango / Mussarela", price: 40, flavorIds: ["frango", "mussarela"] },
+  { id: "frango-calabresa", name: "Frango / Calabresa", price: 35, flavorIds: ["frango", "calabresa"] },
+  { id: "frango-portuguesa", name: "Frango / Portuguesa", price: 40, flavorIds: ["frango", "portuguesa"] },
+  { id: "carne-de-sol-frango", name: "Carne de Sol / Frango", price: 40, flavorIds: ["carne-de-sol", "frango"] },
 ];
 
 export const pizzaBorders: MenuOption[] = [

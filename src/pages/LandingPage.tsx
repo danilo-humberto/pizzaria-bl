@@ -5,11 +5,11 @@ import { BuilderSection } from '../components/landing/BuilderSection'
 import { ContactSection } from '../components/landing/ContactSection'
 import { HeroSection } from '../components/landing/HeroSection'
 import { useGsapReveal } from '../hooks/useGsapReveal'
-import { useOrderBuilder } from '../hooks/useOrderBuilder'
+import { usePizzaOrderBuilder } from '../hooks/usePizzaOrderBuilder'
 
 export function LandingPage() {
   const pageRef = useRef<HTMLDivElement>(null)
-  const builder = useOrderBuilder()
+  const builder = usePizzaOrderBuilder()
 
   useGsapReveal(pageRef)
 

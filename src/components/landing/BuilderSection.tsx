@@ -1,210 +1,138 @@
-import { ArrowUp } from "lucide-react";
-import { fruits } from "../../data/fruits";
-import { iceCreamFlavors } from "../../data/iceCreamFlavors";
-import { orderSteps } from "../../data/orderSteps";
-import { orderTypes } from "../../data/orderTypes";
-import { sizes } from "../../data/sizes";
-import { syrups } from "../../data/syrups";
-import { toppings } from "../../data/toppings";
-import type { OrderBuilder } from "../../hooks/useOrderBuilder";
-import { Container } from "../layout/Container";
-import { SectionTitle } from "../layout/SectionTitle";
-import { CustomerForm } from "../order/CustomerForm";
-import { FruitSelector } from "../order/FruitSelector";
-import { IceCreamFlavorSelector } from "../order/IceCreamFlavorSelector";
-import { OrderMobileDock } from "../order/OrderMobileDock";
-import { OrderConfirmationModal } from "../order/OrderConfirmationModal";
-import { OrderSummary } from "../order/OrderSummary";
-import { OrderTypeSelector } from "../order/OrderTypeSelector";
-import { PaymentForm } from "../order/PaymentForm";
-import { SizeSelector } from "../order/SizeSelector";
-import { SyrupSelector } from "../order/SyrupSelector";
-import { ToppingSelector } from "../order/ToppingSelector";
-import { Button } from "../ui/Button";
+import { useCallback, useRef, useState } from 'react'
+import { beverages, esfihas, halfAndHalfPizzas, pizzaBorders, pizzaOrderRules, pizzas } from '../../data/pizzaMenu'
+import type { MenuOption } from '../../data/pizzaMenu'
+import type { PizzaOrderBuilder } from '../../hooks/usePizzaOrderBuilder'
+import { getPizzaOption } from '../../utils/pizzaOrder'
+import { formatCurrency } from '../../utils/formatCurrency'
+import { Container } from '../layout/Container'
+import { SectionTitle } from '../layout/SectionTitle'
+import { CustomerForm } from '../order/CustomerForm'
+import { MenuOptionCards } from '../order/MenuOptionCards'
+import { OrderMobileDock } from '../order/OrderMobileDock'
+import { OrderSummary } from '../order/OrderSummary'
+import { PaymentForm } from '../order/PaymentForm'
+import { PizzaBorderModal } from '../order/PizzaBorderModal'
+import { PizzaAddedToast } from '../order/PizzaAddedToast'
+import type { PizzaAdditionNotice } from '../order/PizzaAddedToast'
+import { Button } from '../ui/Button'
 
-type BuilderSectionProps = {
-  builder: OrderBuilder;
-};
+type BuilderSectionProps = { builder: PizzaOrderBuilder }
+const controlClass = 'min-h-12 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 text-base text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]'
 
 export function BuilderSection({ builder }: BuilderSectionProps) {
-  const visibleOrderSteps = orderSteps.filter(
-    (step) =>
-      step.id !== "icecream-flavor" || builder.shouldChooseIceCreamFlavor,
-  );
-  const getStepNumber = (stepId: string) =>
-    visibleOrderSteps.findIndex((step) => step.id === stepId) + 1;
+  const [pizzaId, setPizzaId] = useState('')
+  const [pizzaGroup, setPizzaGroup] = useState<'whole' | 'half'>('whole')
+  const [quantity, setQuantity] = useState(1)
+  const [pendingPizza, setPendingPizza] = useState<{ pizza: MenuOption; quantity: number } | null>(null)
+  const [notice, setNotice] = useState<PizzaAdditionNotice | null>(null)
+  const noticeId = useRef(0)
+  const dismissToast = useCallback(() => setNotice(null), [])
+  const pizzaOptions: MenuOption[] = pizzaGroup === 'whole' ? pizzas : halfAndHalfPizzas.map((option) => ({
+    ...option,
+    description: option.flavorIds.map((flavorId) => {
+      const flavor = pizzas.find((pizza) => pizza.id === flavorId)
+      return flavor ? `${flavor.name}: ${flavor.description}` : ''
+    }).filter(Boolean).join(' '),
+  }))
+  const selectedPizza = pizzaOptions.find((pizza) => pizza.id === pizzaId)
 
-  return (
-    <section
-      id="monte"
-      className="builder-section-bg scroll-mt-24 pb-36 pt-14 md:pb-40 md:pt-20 lg:py-20"
-    >
-      <Container>
-        <SectionTitle
-          eyebrow="Monte do seu jeito"
-          title="Monte seu açaí"
-          description="Escolha o tamanho, o tipo do pedido, complementos, calda e pagamento para retirada no local."
-        />
+  const changePizzaGroup = (group: 'whole' | 'half') => {
+    setPizzaGroup(group)
+    setPizzaId('')
+    setQuantity(1)
+  }
 
-        <div
-          data-reveal
-          className="builder-layout-grid grid min-w-0 gap-5 lg:gap-6"
-        >
-          <aside className="builder-steps-panel hidden rounded-3xl p-4 text-(--text-primary) panel-shadow lg:sticky lg:top-28 lg:block lg:self-start">
-            <ol className="hide-scrollbar flex gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-              {visibleOrderSteps.map((step, index) => (
-                <li key={step.id} className="min-w-36 lg:min-w-0">
-                  <a
-                    href={`#builder-${step.id}`}
-                    className="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-(--surface-muted)"
-                  >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-(--brand-primary) text-sm font-extrabold text-(--surface)">
-                      {index + 1}
-                    </span>
-                    <span>
-                      <span className="block text-sm font-extrabold">
-                        {step.title}
-                      </span>
-                      <span className="block text-xs leading-4 text-(--text-muted)">
-                        {step.description}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </aside>
+  const selectPizza = (id: string) => {
+    setPizzaId((current) => current === id ? '' : id)
+    setQuantity(1)
+  }
 
-          <main className="builder-main-panel min-w-0 space-y-12 overflow-x-hidden rounded-3xl p-4 text-(--text-primary) panel-shadow sm:p-6 lg:p-8">
-            <SizeSelector
-              sizes={sizes}
-              selectedSizeId={builder.order.sizeId}
-              fieldErrors={builder.validation.fieldErrors}
-              stepNumber={getStepNumber("size")}
-              onSelect={builder.setSize}
-            />
-            <OrderTypeSelector
-              orderTypes={orderTypes}
-              selectedOrderTypeId={builder.order.orderTypeId}
-              isBarcaSelected={builder.order.sizeId.startsWith("barca-")}
-              fieldErrors={builder.validation.fieldErrors}
-              stepNumber={getStepNumber("order-type")}
-              onSelect={builder.setOrderType}
-            />
-            {(builder.availabilityError || builder.availabilityNotice) && (
-              <div
-                className={
-                  builder.availabilityError
-                    ? "rounded-2xl bg-[var(--error-soft)] p-4 text-sm font-bold leading-6 text-[var(--error)]"
-                    : "rounded-2xl bg-[var(--success-soft)] p-4 text-sm font-bold leading-6 text-[var(--success)]"
-                }
-                role="status"
-              >
-                {builder.availabilityError ?? builder.availabilityNotice}
-              </div>
-            )}
-            {builder.shouldChooseIceCreamFlavor && (
-              <IceCreamFlavorSelector
-                flavors={iceCreamFlavors}
-                selectedFlavorIds={builder.order.iceCreamFlavorIds}
-                maxSelections={builder.maxIceCreamFlavorSelections}
-                fieldErrors={builder.validation.fieldErrors}
-                unavailableFlavorIds={builder.availability.creamFlavorIds}
-                isAvailabilityReady={builder.isAvailabilityReady}
-                stepNumber={getStepNumber("icecream-flavor")}
-                onToggle={builder.toggleIceCreamFlavor}
-              />
-            )}
-            <FruitSelector
-              fruits={fruits}
-              selections={builder.order.fruitSelections}
-              unavailableFruitIds={builder.availability.fruitIds}
-              isAvailabilityReady={builder.isAvailabilityReady}
-              stepNumber={getStepNumber("fruits")}
-              onToggle={builder.toggleFruit}
-              onIncrement={builder.incrementFruit}
-              onDecrement={builder.decrementFruit}
-            />
-            <ToppingSelector
-              toppings={toppings}
-              selections={builder.order.toppingSelections}
-              selectedSizeId={builder.order.sizeId}
-              unavailableToppingIds={builder.availability.toppingIds}
-              isAvailabilityReady={builder.isAvailabilityReady}
-              stepNumber={getStepNumber("toppings")}
-              onToggle={builder.toggleTopping}
-              onIncrement={builder.incrementTopping}
-              onDecrement={builder.decrementTopping}
-            />
-            <SyrupSelector
-              syrups={syrups}
-              selection={builder.order.syrupSelection}
-              unavailableSyrupIds={builder.availability.syrupIds}
-              isAvailabilityReady={builder.isAvailabilityReady}
-              stepNumber={getStepNumber("syrup")}
-              onSelect={builder.setSyrup}
-              onIncrement={builder.incrementSyrup}
-              onDecrement={builder.decrementSyrup}
-            />
-            <CustomerForm
-              customer={builder.order.customer}
-              observation={builder.order.observation}
-              fieldErrors={builder.validation.fieldErrors}
-              stepNumber={getStepNumber("customer")}
-              onCustomerChange={builder.updateCustomerData}
-              onObservationChange={builder.setObservation}
-            />
-            <PaymentForm
-              payment={builder.order.payment}
-              fieldErrors={builder.validation.fieldErrors}
-              stepNumber={getStepNumber("payment")}
-              onMethodChange={builder.setPaymentMethod}
-              onPaymentChange={builder.updatePaymentData}
-            />
+  const addExtraItem: PizzaOrderBuilder['addItem'] = (kind, optionId, quantity) => {
+    const result = builder.addItem(kind, optionId, quantity)
+    if (result.ok) {
+      const option = getPizzaOption(result.addedItems[0])
+      if (option) setNotice({ id: ++noticeId.current, name: option.name, quantity, items: result.addedItems })
+    }
+    return result
+  }
 
-            <section
-              id="builder-review"
-              className="scroll-mt-28 rounded-3xl bg-(--surface-muted) p-5"
-            >
-              <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm font-extrabold text-(--brand-primary)">
-                    {getStepNumber("review")}. Revisão
-                  </p>
-                  <h3 className="break-words font-display text-3xl font-extrabold leading-tight text-(--text-primary)">
-                    Confira seu pedido
-                  </h3>
-                  <p className="mt-2 leading-7 text-(--text-secondary)">
-                    Revise os itens, ajuste o que precisar e finalize pelo site
-                    quando estiver tudo certinho.
-                  </p>
+  return <section id="monte" className="builder-section-bg scroll-mt-24 pb-36 pt-14 md:pb-40 md:pt-20 lg:py-20">
+    <Container>
+      <SectionTitle eyebrow="Monte do seu jeito" title="Monte seu pedido" description="Escolha pizzas grandes, bordas, esfihas e bebidas. Retirada no local." />
+      <div data-reveal className="builder-layout-grid grid min-w-0 gap-5 lg:gap-6">
+        <aside className="builder-steps-panel hidden rounded-3xl p-4 text-[var(--text-primary)] panel-shadow lg:sticky lg:top-28 lg:block lg:self-start">
+          <nav aria-label="Etapas do pedido"><ol className="space-y-2">
+            {[
+              ['pizzas', 'Pizzas'], ['extras', 'Esfihas e bebidas'], ['items', 'Itens escolhidos'],
+              ['customer', 'Dados'], ['payment', 'Pagamento'], ['review', 'Revisão'],
+            ].map(([id, title], index) => <li key={id}><a href={`#builder-${id}`} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-[var(--surface-muted)]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--brand-primary)] text-sm font-extrabold text-[var(--surface)]">{index + 1}</span><span className="text-sm font-extrabold">{title}</span></a></li>)}
+          </ol></nav>
+        </aside>
+        <main className="builder-main-panel min-w-0 space-y-10 overflow-x-hidden rounded-3xl p-4 text-[var(--text-primary)] panel-shadow sm:p-6 lg:p-8">
+          <section id="builder-pizzas" className="scroll-mt-28">
+            <p className="text-sm font-extrabold text-[var(--brand-primary)]">1. Pizzas</p>
+            <h3 className="font-display text-3xl font-extrabold">Escolha sua pizza</h3>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">Tamanho {pizzaOrderRules.size}. Até {pizzaOrderRules.maxQuantityPerFlavorPerOrder} unidades por sabor. Meio a meio conta para os dois sabores.</p>
+            <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Tipo de pizza">
+              <button type="button" aria-pressed={pizzaGroup === 'whole'} onClick={() => changePizzaGroup('whole')} className={`min-h-11 rounded-full px-4 text-sm font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)] ${pizzaGroup === 'whole' ? 'bg-[var(--brand-primary)] text-[var(--surface)]' : 'bg-[var(--surface-muted)] text-[var(--text-primary)]'}`}>Pizzas inteiras</button>
+              <button type="button" aria-pressed={pizzaGroup === 'half'} onClick={() => changePizzaGroup('half')} className={`min-h-11 rounded-full px-4 text-sm font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)] ${pizzaGroup === 'half' ? 'bg-[var(--brand-primary)] text-[var(--surface)]' : 'bg-[var(--surface-muted)] text-[var(--text-primary)]'}`}>Meio a meio</button>
+            </div>
+            <div className="mt-5">
+              <MenuOptionCards legend="Sabor" name="pizza-option" options={pizzaOptions} selectedId={pizzaId} onSelect={selectPizza} quantityControl={{ value: quantity, max: pizzaOrderRules.maxQuantityPerFlavorPerOrder, onChange: setQuantity }} selectedAction={<Button className="w-full" onClick={() => { if (selectedPizza) { dismissToast(); setPendingPizza({ pizza: selectedPizza, quantity }) } }}>Adicionar {quantity > 1 ? `${quantity} pizzas` : 'pizza'}</Button>} />
+            </div>
+          </section>
+          <section id="builder-extras" className="scroll-mt-28">
+            <p className="text-sm font-extrabold text-[var(--brand-primary)]">2. Acompanhamentos</p><h3 className="font-display text-3xl font-extrabold">Esfihas e bebidas</h3>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">Sem limite de quantidade; podem acompanhar as pizzas.</p>
+            <div className="mt-5 space-y-8"><ExtraPicker title="Esfihas" kind="esfiha" options={esfihas} onAdd={addExtraItem} /><ExtraPicker title="Bebidas" kind="beverage" options={beverages} onAdd={addExtraItem} /></div>
+          </section>
+          <section id="builder-items" className="scroll-mt-28">
+            <p className="text-sm font-extrabold text-[var(--brand-primary)]">3. Seu pedido</p><h3 className="font-display text-3xl font-extrabold">Itens escolhidos</h3>
+            {builder.itemError && <p role="alert" className="mt-3 rounded-2xl bg-[var(--error-soft)] p-3 text-sm font-bold text-[var(--error)]">{builder.itemError}</p>}
+            {builder.validation.fieldErrors.items && <p className="mt-3 text-sm font-bold text-[var(--error)]">{builder.validation.fieldErrors.items}</p>}
+            <div className="mt-4 space-y-3">{builder.order.items.length === 0 && <p className="rounded-2xl bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-muted)]">Seu pedido ainda está vazio.</p>}
+              {builder.order.items.map((item) => { const option = getPizzaOption(item); return <div key={item.id} className="rounded-2xl border border-[var(--border)] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-extrabold">{item.kind === 'pizza' ? 'Pizza grande' : item.kind === 'esfiha' ? 'Esfiha' : 'Bebida'} — {option?.name}</p><p className="text-sm text-[var(--text-muted)]">{formatCurrency(option?.price ?? 0)} por unidade</p></div><button type="button" className="min-h-11 rounded-xl px-3 text-sm font-bold text-[var(--error)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)]" onClick={() => builder.removeItem(item.id)}>Remover</button></div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label htmlFor={`item-quantity-${item.id}`} className="mb-1 block text-sm font-bold">Quantidade</label><input id={`item-quantity-${item.id}`} className={controlClass} type="number" inputMode="numeric" min="1" max={item.kind === 'pizza' ? 5 : undefined} step="1" value={item.quantity} onChange={(event) => builder.setItemQuantity(item.id, Number(event.target.value))} /></div>
+                  {item.kind === 'pizza' && <div><label htmlFor={`item-border-${item.id}`} className="mb-1 block text-sm font-bold">Borda</label><select id={`item-border-${item.id}`} className={controlClass} value={item.borderId ?? ''} onChange={(event) => builder.setItemBorder(item.id, event.target.value)}><option value="">Sem borda</option>{pizzaBorders.map((border) => <option key={border.id} value={border.id}>{border.name} — {formatCurrency(border.price)}</option>)}</select></div>}
                 </div>
+              </div> })}
+            </div>
+          </section>
+          <CustomerForm customer={builder.order.customer} observation={builder.order.observation} fieldErrors={builder.validation.fieldErrors} stepNumber={4} onCustomerChange={builder.updateCustomerData} onObservationChange={builder.setObservation} />
+          <PaymentForm payment={builder.order.payment} fieldErrors={builder.validation.fieldErrors} stepNumber={5} onMethodChange={builder.setPaymentMethod} onPaymentChange={builder.updatePaymentData} />
+          <section id="builder-review" className="scroll-mt-28 rounded-3xl bg-[var(--surface-muted)] p-5">
+            <p className="text-sm font-extrabold text-[var(--brand-primary)]">6. Revisão</p>
+            <h3 className="font-display text-3xl font-extrabold">Confira seu pedido</h3>
+            <p className="mt-2 text-[var(--text-secondary)]">Retirada no local. Esta página é uma demonstração; nenhum pedido será enviado.</p>
+            <div className="mt-5 lg:hidden"><Button href="#builder-items" variant="soft" className="w-full">Ver itens escolhidos</Button></div>
+            <div className="mt-5 hidden lg:block"><Button href="#monte" variant="soft">Voltar ao início e ver resumo</Button></div>
+          </section>
+        </main>
+        <OrderSummary builder={builder} />
+      </div>
+      <OrderMobileDock builder={builder} />
+      {pendingPizza && <PizzaBorderModal pizza={pendingPizza.pizza} quantity={pendingPizza.quantity} onClose={() => setPendingPizza(null)} onConfirm={(borderQuantities) => {
+        const result = builder.addPizzas(pendingPizza.pizza.id, pendingPizza.quantity, borderQuantities)
+        if (result.ok) setNotice({ id: ++noticeId.current, name: pendingPizza.pizza.name, quantity: pendingPizza.quantity, items: result.addedItems })
+        return result
+      }} />}
+      <PizzaAddedToast notice={notice} onDismiss={dismissToast} />
+    </Container>
+  </section>
+}
 
-                <Button
-                  href="#monte"
-                  variant="soft"
-                  className="hidden shrink-0 md:inline-flex"
-                  icon={<ArrowUp size={18} />}
-                  ariaLabel="Voltar ao início da seção Monte seu açaí"
-                >
-                  Voltar ao início
-                </Button>
-              </div>
-            </section>
-          </main>
-
-          <OrderSummary builder={builder} />
-        </div>
-
-        <OrderMobileDock builder={builder} />
-        <OrderConfirmationModal
-          isOpen={builder.isConfirmationModalOpen}
-          publicCode={builder.confirmationData?.publicCode}
-          trackingUrl={builder.confirmationData?.trackingUrl}
-          onClose={builder.closeConfirmationModal}
-          onNewOrder={builder.resetOrder}
-        />
-      </Container>
-    </section>
-  );
+type ExtraPickerProps = { title: string; kind: 'esfiha' | 'beverage'; options: MenuOption[]; onAdd: PizzaOrderBuilder['addItem'] }
+function ExtraPicker({ title, kind, options, onAdd }: ExtraPickerProps) {
+  const [optionId, setOptionId] = useState('')
+  const [quantity, setQuantity] = useState(1)
+  const selectOption = (id: string) => {
+    setOptionId((current) => current === id ? '' : id)
+    setQuantity(1)
+  }
+  const addButton = <Button className={kind === 'beverage' ? 'w-full' : 'mt-3 w-full sm:w-auto'} disabled={!optionId} onClick={() => onAdd(kind, optionId, quantity)}>Adicionar {quantity > 1 ? `${quantity} ${kind === 'esfiha' ? 'esfihas' : 'bebidas'}` : kind === 'esfiha' ? 'esfiha' : 'bebida'}</Button>
+  return <div className="rounded-2xl bg-[var(--surface-muted)] p-4"><h4 className="mb-4 text-lg font-extrabold">{title}</h4>
+    <MenuOptionCards legend="Opção" name={`${kind}-option`} options={options} selectedId={optionId} onSelect={selectOption} quantityControl={{ value: quantity, onChange: setQuantity }} compact uniformHeight={kind === 'beverage'} selectedAction={kind === 'beverage' ? addButton : undefined} />
+    {kind === 'esfiha' && addButton}
+  </div>
 }

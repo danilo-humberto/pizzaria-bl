@@ -2,9 +2,12 @@ import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { isDemoMode } from '../config/demoMode'
+import { beverages, esfihas, pizzas } from '../data/pizzaMenu'
 import { emptyIngredientAvailability } from '../utils/ingredientAvailability'
 import { loadIngredientAvailabilityListener, useIngredientAvailability } from './useIngredientAvailability'
 import { useOrderBuilder } from './useOrderBuilder'
+import { usePizzaOrderBuilder } from './usePizzaOrderBuilder'
+import { BuilderSection } from '../components/landing/BuilderSection'
 import type { OrderBuilder } from './useOrderBuilder'
 
 const { availabilityServiceLoads, orderServiceLoads } = vi.hoisted(() => ({
@@ -57,5 +60,29 @@ describe('isolamento da demonstração', () => {
     expect(builder?.validation.isValid).toBe(true)
     expect(await builder?.finalizeOrder()).toBe(false)
     expect(orderServiceLoads).not.toHaveBeenCalled()
+  })
+
+  it('renderiza a montagem de pizza sem opções de açaí ou ação de envio', () => {
+    function PizzaBuilder() {
+      return createElement(BuilderSection, { builder: usePizzaOrderBuilder() })
+    }
+
+    const html = renderToString(createElement(PizzaBuilder))
+    expect(html).toContain('Meio a meio')
+    expect(html).toContain('Calabresa')
+    expect(html).toContain('aria-pressed="false" aria-labelledby="pizza-option-mussarela-name"')
+    expect(html.match(/aria-labelledby="pizza-option-[^"]+-name"/g)).toHaveLength(pizzas.length)
+    expect(html.match(/aria-labelledby="esfiha-option-[^"]+-name"/g)).toHaveLength(esfihas.length)
+    expect(html.match(/aria-labelledby="beverage-option-[^"]+-name"/g)).toHaveLength(beverages.length)
+    expect(html).not.toMatch(/Ver todos os .* sabores|Ver todas as .* bebidas/)
+    expect(html).not.toContain('pizza-search')
+    expect(html).not.toContain('Buscar sabor')
+    expect(html).not.toMatch(/<img[^>]+\.jpg/)
+    expect(html).toContain('Monte seu pedido')
+    expect(html).toContain('Demonstração: pedidos não são enviados')
+    expect(html).not.toMatch(/açaí|granola|calda|frutas/i)
+    expect(html).toMatch(/disabled=""[^>]*>.*?Finalizar pedido/s)
+    expect(orderServiceLoads).not.toHaveBeenCalled()
+    expect(availabilityServiceLoads).not.toHaveBeenCalled()
   })
 })

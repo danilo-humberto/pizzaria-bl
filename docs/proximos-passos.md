@@ -19,6 +19,6 @@ A clonagem inicial criou a base independente, a identidade visual do cliente e o
 
 Executar as etapas 1 a 4 para concluir a experiência do cliente. O administrativo entra depois, mas precisa estar adaptado antes de liberar pedidos reais.
 
-As principais decisões pendentes são como cobrar pizzas com mais de um sabor, se haverá entrega e se cada pedido poderá conter várias pizzas. Essas definições orientam os cálculos, a estrutura do pedido e os campos do formulário.
+As regras aprovadas para a etapa 3 usam os preços e as combinações meio a meio de `src/data/pizzaMenu.ts`. Cada pedido pode conter várias pizzas, com até cinco unidades por sabor; uma pizza meio a meio conta para ambos os sabores. Esfihas e bebidas não têm limite de quantidade e podem acompanhar as pizzas. O atendimento é somente por retirada, com os métodos de pagamento já disponíveis no site.
 
 Este documento organiza o trabalho futuro; não registra essas etapas como executadas nem substitui a definição das regras com o usuário.

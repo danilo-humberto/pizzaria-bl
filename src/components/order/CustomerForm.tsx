@@ -55,7 +55,7 @@ export function CustomerForm({
           id="order-notes"
           label="Observação"
           value={observation}
-          placeholder="Ex: pouca granola, sem banana..."
+          placeholder="Ex: sem cebola, borda bem assada..."
           onChange={(event) => onObservationChange(event.target.value)}
         />
       </div>
