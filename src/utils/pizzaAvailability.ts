@@ -1,5 +1,13 @@
 import { beverages, esfihas, pizzaBorders, pizzas } from '../data/pizzaMenu'
 import type { PizzaAvailability } from '../types/pizzaAvailability'
+import type { PizzaOrderItem } from '../types/pizzaOrder'
+import { getPizzaFlavorIds } from './pizzaOrder'
+
+export function isPizzaOrderItemAvailable(item: Pick<PizzaOrderItem, 'kind' | 'optionId' | 'borderId'>, availability: PizzaAvailability) {
+  if (item.kind === 'pizza') return getPizzaFlavorIds(item.optionId).every((id) => !availability.pizzaFlavorIds.includes(id))
+    && (!item.borderId || !availability.borderIds.includes(item.borderId))
+  return !availability[item.kind === 'esfiha' ? 'esfihaIds' : 'beverageIds'].includes(item.optionId)
+}
 
 export type PizzaAvailabilityCategory = keyof PizzaAvailability
 export type PizzaAvailabilityItem = { id: string; name: string }

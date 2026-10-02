@@ -11,13 +11,15 @@ import { MenuOptionCards } from './MenuOptionCards'
 type PizzaBorderModalProps = {
   pizza: MenuOption
   quantity: number
+  unavailableBorderIds?: string[]
+  unavailable?: boolean
   onClose: () => void
   onConfirm: (borderQuantities: PizzaBorderQuantities) => PizzaAdditionResult
 }
 
 const stepperClass = 'grid min-h-11 min-w-11 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-xl font-bold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]'
 
-export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm }: PizzaBorderModalProps) {
+export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm, unavailableBorderIds = [], unavailable = false }: PizzaBorderModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const confirmingRef = useRef(false)
   const [withBorders, setWithBorders] = useState(false)
@@ -25,6 +27,7 @@ export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm }: PizzaB
   const [error, setError] = useState('')
   const assigned = Object.values(borderQuantities).reduce((sum, count) => sum + count, 0)
   const activeBorders = withBorders ? borderQuantities : {}
+  const selectionUnavailable = unavailable || Object.entries(activeBorders).some(([id, count]) => count > 0 && unavailableBorderIds.includes(id))
   const preview = buildPizzaAddition([], pizza.id, quantity, activeBorders)
   const groups = preview.ok ? preview.items : []
   const total = groups.reduce((sum, item) => sum + getPizzaItemTotalCents(item), 0) / 100
@@ -49,6 +52,7 @@ export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm }: PizzaB
   }
 
   const changeBorderQuantity = (id: string, delta: number) => {
+    if (delta > 0 && unavailableBorderIds.includes(id)) return
     setBorderQuantities((current) => {
       const count = (current[id] ?? 0) + delta
       const used = Object.values(current).reduce((sum, value) => sum + value, 0)
@@ -59,7 +63,7 @@ export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm }: PizzaB
   }
 
   const confirm = () => {
-    if (confirmingRef.current) return
+    if (confirmingRef.current || selectionUnavailable) return
     if (withBorders && assigned === 0) {
       setError('Escolha a borda de pelo menos uma pizza.')
       return
@@ -83,15 +87,15 @@ export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm }: PizzaB
       <fieldset><legend className="mb-3 text-sm font-extrabold">Como você prefere?</legend><div className="grid grid-cols-2 gap-3">
         {[false, true].map((value) => <label key={String(value)} className={`flex min-h-12 cursor-pointer items-center gap-2 rounded-2xl border-2 p-3 text-sm font-bold ${withBorders === value ? 'border-[var(--brand-primary)] bg-[var(--surface-muted)]' : 'border-[var(--border)]'}`}><input type="radio" name="pizza-border-mode" checked={withBorders === value} onChange={() => chooseMode(value)} className="accent-[var(--brand-primary)]" />{value ? 'Escolher bordas' : 'Sem borda'}</label>)}
       </div></fieldset>
-      {withBorders && (quantity === 1 ? <MenuOptionCards legend="Escolha a borda" name="modal-pizza-border" options={pizzaBorders} selectedId={Object.keys(borderQuantities).find((id) => borderQuantities[id] > 0) ?? ''} onSelect={(id) => { setBorderQuantities({ [id]: 1 }); setError('') }} compact /> : <fieldset>
+      {withBorders && (quantity === 1 ? <MenuOptionCards legend="Escolha a borda" name="modal-pizza-border" options={pizzaBorders} unavailableIds={unavailableBorderIds} disabled={unavailable} selectedId={Object.keys(borderQuantities).find((id) => borderQuantities[id] > 0) ?? ''} onSelect={(id) => { setBorderQuantities({ [id]: 1 }); setError('') }} compact /> : <fieldset>
         <legend className="mb-2 text-sm font-extrabold">Quantas pizzas recebem cada borda?</legend>
         <p className="mb-3 text-sm text-[var(--text-secondary)]">Distribua até {quantity} pizzas. As restantes ficam sem borda.</p>
         <div className="space-y-3">{pizzaBorders.map((border) => <div key={border.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] p-3">
-          <div><p id={`border-count-${border.id}`} className="text-sm font-extrabold">{border.name}</p><p className="mt-1 text-sm text-[var(--text-secondary)]">+ {formatCurrency(border.price)} por pizza</p></div>
+          <div><p id={`border-count-${border.id}`} className="text-sm font-extrabold">{border.name}{unavailableBorderIds.includes(border.id) ? ' — Esgotado' : ''}</p><p className="mt-1 text-sm text-[var(--text-secondary)]">+ {formatCurrency(border.price)} por pizza</p></div>
           <div role="group" aria-labelledby={`border-count-${border.id}`} className="inline-flex items-center gap-2">
             <button type="button" aria-label={`Diminuir pizzas com ${border.name.toLowerCase()}`} disabled={!borderQuantities[border.id]} onClick={() => changeBorderQuantity(border.id, -1)} className={stepperClass}>−</button>
             <output aria-live="polite" className="min-w-7 text-center font-extrabold tabular-nums">{borderQuantities[border.id] ?? 0}</output>
-            <button type="button" aria-label={`Aumentar pizzas com ${border.name.toLowerCase()}`} disabled={assigned >= quantity} onClick={() => changeBorderQuantity(border.id, 1)} className={stepperClass}>+</button>
+            <button type="button" aria-label={`Aumentar pizzas com ${border.name.toLowerCase()}`} disabled={unavailable || unavailableBorderIds.includes(border.id) || assigned >= quantity} onClick={() => changeBorderQuantity(border.id, 1)} className={stepperClass}>+</button>
           </div>
         </div>)}</div>
       </fieldset>)}
@@ -102,8 +106,9 @@ export function PizzaBorderModal({ pizza, quantity, onClose, onConfirm }: PizzaB
         <div className="mt-3 flex justify-between gap-3 border-t border-[var(--border)] pt-3"><span className="text-sm font-bold">Total da adição</span><strong className="text-[var(--brand-primary)]">{formatCurrency(total)}</strong></div>
       </div>
       {withBorders && assigned === 0 && <p className="text-sm text-[var(--text-secondary)]">Escolha a borda de pelo menos uma pizza para confirmar.</p>}
+      {selectionUnavailable && <p role="status" className="text-sm font-bold text-[var(--error)]">Pizza ou borda esgotada. Ajuste a escolha ou cancele para escolher outra pizza.</p>}
       {error && <p role="alert" className="rounded-2xl bg-[var(--error-soft)] p-3 text-sm font-bold text-[var(--error)]">{error}</p>}
-      <div className="flex flex-col-reverse gap-3 sm:flex-row"><Button variant="soft" className="sm:flex-1" onClick={onClose}>Cancelar</Button><Button type="submit" className="sm:flex-1" disabled={withBorders && assigned === 0}>Confirmar adição</Button></div>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row"><Button variant="soft" className="sm:flex-1" onClick={onClose}>Cancelar</Button><Button type="submit" className="sm:flex-1" disabled={selectionUnavailable || (withBorders && assigned === 0)}>Confirmar adição</Button></div>
     </form>
   </dialog>
 }

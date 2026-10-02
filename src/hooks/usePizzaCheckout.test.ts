@@ -51,3 +51,5 @@ describe('finalização de pizza', () => {
     expect(mocks.create.mock.calls[1][0]).toEqual(draft)
   })
 })
+
+vi.mock('./usePizzaAvailability', () => ({ usePizzaAvailability: () => ({ availability: { pizzaFlavorIds: [], borderIds: [], esfihaIds: [], beverageIds: [] }, isLoading: false, error: null }) }))

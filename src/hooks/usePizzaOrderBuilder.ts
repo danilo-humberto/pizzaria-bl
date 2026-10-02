@@ -3,7 +3,8 @@ import { demoOrderNotice, isDemoMode } from '../config/demoMode'
 import { pizzaBorders, pizzaOrderRules } from '../data/pizzaMenu'
 import { SHOW_CASH_CHANGE_DETAILS } from '../data/paymentMethods'
 import type { CustomerData, OrderConfirmationData, PaymentData, PaymentMethod } from '../types/order'
-import { UnavailablePizzaItemsError } from '../utils/pizzaAvailability'
+import { isPizzaOrderItemAvailable, UnavailablePizzaItemsError } from '../utils/pizzaAvailability'
+import { usePizzaAvailability } from './usePizzaAvailability'
 import type { PizzaAdditionResult, PizzaBorderQuantities, PizzaOrderDraft, PizzaOrderItem } from '../types/pizzaOrder'
 import { buildPizzaAddition, calculatePizzaOrderTotal, getFlavorQuantity, getPizzaFlavorIds, getPizzaOption, validatePizzaOrder } from '../utils/pizzaOrder'
 
@@ -21,6 +22,10 @@ function withinFlavorLimit(items: PizzaOrderItem[]) {
 }
 
 export function usePizzaOrderBuilder() {
+  const { availability, isLoading: isAvailabilityLoading, error: availabilityError } = usePizzaAvailability()
+  const isAvailabilityReady = !isAvailabilityLoading && !availabilityError
+  const isItemAvailable = (kind: PizzaOrderItem['kind'], optionId: string, borderId?: string) =>
+    Boolean(isAvailabilityReady && isPizzaOrderItemAvailable({ kind, optionId, borderId }, availability))
   const [order, setOrder] = useState<PizzaOrderDraft>(initialOrder)
   const [itemError, setItemError] = useState('')
   const [confirmationData, setConfirmationData] = useState<OrderConfirmationData | null>(null)
@@ -32,7 +37,18 @@ export function usePizzaOrderBuilder() {
   const nextId = useRef(0)
   const itemsRef = useRef(initialOrder.items)
   const total = useMemo(() => calculatePizzaOrderTotal(order), [order])
-  const validation = useMemo(() => validatePizzaOrder(order), [order])
+  const validation = useMemo(() => {
+    const result = validatePizzaOrder(order)
+    const unavailable = order.items.filter((item) => !isPizzaOrderItemAvailable(item, availability))
+    const message = isAvailabilityLoading ? 'Carregando disponibilidade do cardápio…' : availabilityError
+      || (unavailable.length ? `Indisponível no momento: ${unavailable.map((item) => getPizzaOption(item)?.name).join(', ')}. Remova ou ajuste os itens escolhidos.` : null)
+    if (message) {
+      result.errors.push(message)
+      result.fieldErrors.items = message
+      result.isValid = false
+    }
+    return result
+  }, [order, availability, isAvailabilityLoading, availabilityError])
 
   const updateItems = (items: PizzaOrderItem[]) => {
     itemsRef.current = items
@@ -40,6 +56,9 @@ export function usePizzaOrderBuilder() {
   }
 
   const addPizzas = (optionId: string, quantity: number, borderQuantities: PizzaBorderQuantities): PizzaAdditionResult => {
+    if (!isItemAvailable('pizza', optionId) || Object.entries(borderQuantities).some(([id, count]) => count > 0 && availability.borderIds.includes(id))) {
+      return rejectAddition('Pizza ou borda indisponível no momento. Ajuste sua escolha.')
+    }
     const result = buildPizzaAddition(itemsRef.current, optionId, quantity, borderQuantities)
     if (!result.ok) {
       setItemError(result.error)
@@ -57,6 +76,7 @@ export function usePizzaOrderBuilder() {
   }
 
   const addItem = (kind: PizzaOrderItem['kind'], optionId: string, quantity: number, borderId?: string): PizzaAdditionResult => {
+    if (!isItemAvailable(kind, optionId, borderId)) return rejectAddition('Item indisponível no momento. Escolha outra opção.')
     const item: PizzaOrderItem = { id: String(++nextId.current), kind, optionId, quantity, ...(kind === 'pizza' && borderId ? { borderId } : {}) }
     if (!getPizzaOption(item) || !Number.isSafeInteger(quantity) || quantity < 1) {
       return rejectAddition('Escolha um item e informe uma quantidade válida.')
@@ -78,6 +98,8 @@ export function usePizzaOrderBuilder() {
 
   const setItemQuantity = (id: string, quantity: number) => {
     if (!Number.isSafeInteger(quantity) || quantity < 1) return
+    const current = itemsRef.current.find((item) => item.id === id)
+    if (current && quantity > current.quantity && !isItemAvailable(current.kind, current.optionId, current.borderId)) return
     const items = itemsRef.current.map((item) => item.id === id ? { ...item, quantity } : item)
     if (!withinFlavorLimit(items)) {
       setItemError(`Cada sabor pode ter no máximo ${pizzaOrderRules.maxQuantityPerFlavorPerOrder} pizzas por pedido.`)
@@ -88,6 +110,7 @@ export function usePizzaOrderBuilder() {
   }
 
   const setItemBorder = (id: string, borderId: string) => {
+    if (borderId && (!isAvailabilityReady || availability.borderIds.includes(borderId))) return
     if (borderId && !pizzaBorders.some((border) => border.id === borderId)) return
     updateItems(itemsRef.current.map((item) => item.id === id && item.kind === 'pizza' ? { ...item, borderId: borderId || undefined } : item))
   }
@@ -160,6 +183,7 @@ export function usePizzaOrderBuilder() {
   }
 
   return {
+    availability, isAvailabilityLoading, availabilityError, isAvailabilityReady, isItemAvailable,
     order, total, validation, itemError,
     confirmationData, isConfirmationModalOpen, isFinalizing, finalizeError,
     finalizeOrder, resetOrder,

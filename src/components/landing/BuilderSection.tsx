@@ -71,6 +71,7 @@ export function BuilderSection({ builder }: BuilderSectionProps) {
           </ol></nav>
         </aside>
         <div className="builder-main-panel min-w-0 space-y-10 overflow-x-hidden rounded-3xl p-4 text-[var(--text-primary)] panel-shadow sm:p-6 lg:p-8">
+          <p role="status" className="text-sm text-[var(--error)]">{builder.isAvailabilityLoading ? 'Carregando disponibilidade do cardápio…' : builder.availabilityError}</p>
           <fieldset disabled={builder.isFinalizing || Boolean(builder.confirmationData)} className="min-w-0 space-y-10" aria-label="Montagem e dados do pedido">
           <section id="builder-pizzas" className="scroll-mt-28">
             <p className="text-sm font-extrabold text-[var(--brand-primary)]">1. Pizzas</p>
@@ -81,23 +82,23 @@ export function BuilderSection({ builder }: BuilderSectionProps) {
               <button type="button" aria-pressed={pizzaGroup === 'half'} onClick={() => changePizzaGroup('half')} className={`min-h-11 rounded-full px-4 text-sm font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)] ${pizzaGroup === 'half' ? 'bg-[var(--brand-primary)] text-[var(--surface)]' : 'bg-[var(--surface-muted)] text-[var(--text-primary)]'}`}>Meio a meio</button>
             </div>
             <div className="mt-5">
-              <MenuOptionCards legend="Sabor" name="pizza-option" options={pizzaOptions} selectedId={pizzaId} onSelect={selectPizza} quantityControl={{ value: quantity, max: pizzaOrderRules.maxQuantityPerFlavorPerOrder, onChange: setQuantity }} selectedAction={<Button className="w-full" onClick={() => { if (selectedPizza) { dismissToast(); setPendingPizza({ pizza: selectedPizza, quantity }) } }}>Adicionar {quantity > 1 ? `${quantity} pizzas` : 'pizza'}</Button>} />
+              <MenuOptionCards legend="Sabor" name="pizza-option" options={pizzaOptions} disabled={!builder.isAvailabilityReady} unavailableIds={builder.isAvailabilityReady ? pizzaOptions.filter((option) => !builder.isItemAvailable('pizza', option.id)).map((option) => option.id) : []} selectedId={pizzaId} onSelect={selectPizza} quantityControl={{ value: quantity, max: pizzaOrderRules.maxQuantityPerFlavorPerOrder, onChange: setQuantity }} selectedAction={<Button className="w-full" onClick={() => { if (selectedPizza) { dismissToast(); setPendingPizza({ pizza: selectedPizza, quantity }) } }}>Adicionar {quantity > 1 ? `${quantity} pizzas` : 'pizza'}</Button>} />
             </div>
           </section>
           <section id="builder-extras" className="scroll-mt-28">
             <p className="text-sm font-extrabold text-[var(--brand-primary)]">2. Acompanhamentos</p><h3 className="font-display text-3xl font-extrabold">Esfihas e bebidas</h3>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">Sem limite de quantidade; podem acompanhar as pizzas.</p>
-            <div className="mt-5 space-y-8"><ExtraPicker title="Esfihas" kind="esfiha" options={esfihas} onAdd={addExtraItem} /><ExtraPicker title="Bebidas" kind="beverage" options={beverages} onAdd={addExtraItem} /></div>
+            <div className="mt-5 space-y-8"><ExtraPicker title="Esfihas" kind="esfiha" options={esfihas} disabled={!builder.isAvailabilityReady} unavailableIds={builder.availability.esfihaIds} onAdd={addExtraItem} /><ExtraPicker title="Bebidas" kind="beverage" options={beverages} disabled={!builder.isAvailabilityReady} unavailableIds={builder.availability.beverageIds} onAdd={addExtraItem} /></div>
           </section>
           <section id="builder-items" className="scroll-mt-28">
             <p className="text-sm font-extrabold text-[var(--brand-primary)]">3. Seu pedido</p><h3 className="font-display text-3xl font-extrabold">Itens escolhidos</h3>
             {builder.itemError && <p role="alert" className="mt-3 rounded-2xl bg-[var(--error-soft)] p-3 text-sm font-bold text-[var(--error)]">{builder.itemError}</p>}
-            {builder.validation.fieldErrors.items && <p className="mt-3 text-sm font-bold text-[var(--error)]">{builder.validation.fieldErrors.items}</p>}
+            {builder.validation.fieldErrors.items && <p role="status" className="mt-3 text-sm font-bold text-[var(--error)]">{builder.validation.fieldErrors.items}</p>}
             <div className="mt-4 space-y-3">{builder.order.items.length === 0 && <p className="rounded-2xl bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-muted)]">Seu pedido ainda está vazio.</p>}
               {builder.order.items.map((item) => { const option = getPizzaOption(item); return <div key={item.id} className="rounded-2xl border border-[var(--border)] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-extrabold">{item.kind === 'pizza' ? 'Pizza grande' : item.kind === 'esfiha' ? 'Esfiha' : 'Bebida'} — {option?.name}</p><p className="text-sm text-[var(--text-muted)]">{formatCurrency(option?.price ?? 0)} por unidade</p></div><button type="button" className="min-h-11 rounded-xl px-3 text-sm font-bold text-[var(--error)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)]" onClick={() => builder.removeItem(item.id)}>Remover</button></div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label htmlFor={`item-quantity-${item.id}`} className="mb-1 block text-sm font-bold">Quantidade</label><input id={`item-quantity-${item.id}`} className={controlClass} type="number" inputMode="numeric" min="1" max={item.kind === 'pizza' ? 5 : undefined} step="1" value={item.quantity} onChange={(event) => builder.setItemQuantity(item.id, Number(event.target.value))} /></div>
-                  {item.kind === 'pizza' && <div><label htmlFor={`item-border-${item.id}`} className="mb-1 block text-sm font-bold">Borda</label><select id={`item-border-${item.id}`} className={controlClass} value={item.borderId ?? ''} onChange={(event) => builder.setItemBorder(item.id, event.target.value)}><option value="">Sem borda</option>{pizzaBorders.map((border) => <option key={border.id} value={border.id}>{border.name} — {formatCurrency(border.price)}</option>)}</select></div>}
+                  {item.kind === 'pizza' && <div><label htmlFor={`item-border-${item.id}`} className="mb-1 block text-sm font-bold">Borda</label><select id={`item-border-${item.id}`} className={controlClass} value={item.borderId ?? ''} onChange={(event) => builder.setItemBorder(item.id, event.target.value)}><option value="">Sem borda</option>{pizzaBorders.map((border) => <option key={border.id} value={border.id} disabled={!builder.isAvailabilityReady || builder.availability.borderIds.includes(border.id)}>{border.name} — {formatCurrency(border.price)}{builder.availability.borderIds.includes(border.id) ? ' — Esgotado' : ''}</option>)}</select></div>}
                 </div>
               </div> })}
             </div>
@@ -121,7 +122,7 @@ export function BuilderSection({ builder }: BuilderSectionProps) {
         <OrderSummary builder={builder} />
       </div>
       <OrderMobileDock builder={builder} />
-      {pendingPizza && <PizzaBorderModal pizza={pendingPizza.pizza} quantity={pendingPizza.quantity} onClose={() => setPendingPizza(null)} onConfirm={(borderQuantities) => {
+      {pendingPizza && <PizzaBorderModal unavailableBorderIds={builder.availability.borderIds} unavailable={!builder.isItemAvailable('pizza', pendingPizza.pizza.id)} pizza={pendingPizza.pizza} quantity={pendingPizza.quantity} onClose={() => setPendingPizza(null)} onConfirm={(borderQuantities) => {
         const result = builder.addPizzas(pendingPizza.pizza.id, pendingPizza.quantity, borderQuantities)
         if (result.ok) setNotice({ id: ++noticeId.current, name: pendingPizza.pizza.name, quantity: pendingPizza.quantity, items: result.addedItems })
         return result
@@ -131,17 +132,17 @@ export function BuilderSection({ builder }: BuilderSectionProps) {
   </section>
 }
 
-type ExtraPickerProps = { title: string; kind: 'esfiha' | 'beverage'; options: MenuOption[]; onAdd: PizzaOrderBuilder['addItem'] }
-function ExtraPicker({ title, kind, options, onAdd }: ExtraPickerProps) {
+type ExtraPickerProps = { title: string; kind: 'esfiha' | 'beverage'; options: MenuOption[]; onAdd: PizzaOrderBuilder['addItem']; unavailableIds: string[]; disabled: boolean }
+function ExtraPicker({ title, kind, options, onAdd, unavailableIds, disabled }: ExtraPickerProps) {
   const [optionId, setOptionId] = useState('')
   const [quantity, setQuantity] = useState(1)
   const selectOption = (id: string) => {
     setOptionId((current) => current === id ? '' : id)
     setQuantity(1)
   }
-  const addButton = <Button className={kind === 'beverage' ? 'w-full' : 'mt-3 w-full sm:w-auto'} disabled={!optionId} onClick={() => onAdd(kind, optionId, quantity)}>Adicionar {quantity > 1 ? `${quantity} ${kind === 'esfiha' ? 'esfihas' : 'bebidas'}` : kind === 'esfiha' ? 'esfiha' : 'bebida'}</Button>
+  const addButton = <Button className={kind === 'beverage' ? 'w-full' : 'mt-3 w-full sm:w-auto'} disabled={disabled || !optionId || unavailableIds.includes(optionId)} onClick={() => onAdd(kind, optionId, quantity)}>Adicionar {quantity > 1 ? `${quantity} ${kind === 'esfiha' ? 'esfihas' : 'bebidas'}` : kind === 'esfiha' ? 'esfiha' : 'bebida'}</Button>
   return <div className="rounded-2xl bg-[var(--surface-muted)] p-4"><h4 className="mb-4 text-lg font-extrabold">{title}</h4>
-    <MenuOptionCards legend="Opção" name={`${kind}-option`} options={options} selectedId={optionId} onSelect={selectOption} quantityControl={{ value: quantity, onChange: setQuantity }} compact uniformHeight={kind === 'beverage'} selectedAction={kind === 'beverage' ? addButton : undefined} />
+    <MenuOptionCards legend="Opção" name={`${kind}-option`} options={options} unavailableIds={unavailableIds} disabled={disabled} selectedId={optionId} onSelect={selectOption} quantityControl={{ value: quantity, onChange: setQuantity }} compact uniformHeight={kind === 'beverage'} selectedAction={kind === 'beverage' ? addButton : undefined} />
     {kind === 'esfiha' && addButton}
   </div>
 }

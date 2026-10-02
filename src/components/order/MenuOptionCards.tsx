@@ -18,24 +18,29 @@ type MenuOptionCardsProps = {
   compact?: boolean
   uniformHeight?: boolean
   selectedAction?: ReactNode
+  unavailableIds?: string[]
+  disabled?: boolean
 }
 
-export function MenuOptionCards({ legend, name, options, selectedId, onSelect, quantityControl, compact = false, uniformHeight = !compact, selectedAction }: MenuOptionCardsProps) {
+export function MenuOptionCards({ legend, name, options, selectedId, onSelect, quantityControl, compact = false, uniformHeight = !compact, selectedAction, unavailableIds = [], disabled = false }: MenuOptionCardsProps) {
   const contentHeight = uniformHeight ? (compact ? 'h-32' : 'h-48') : (compact ? 'min-h-24' : 'min-h-36')
   const expandedContentHeight = compact ? 'min-h-32' : 'min-h-48'
   return <fieldset>
     <legend className="mb-3 text-sm font-extrabold text-[var(--text-primary)]">{legend}</legend>
     <div className="grid items-start gap-3 sm:grid-cols-2">
       {options.map((option) => {
-        const isSelected = selectedId === option.id
+        const unavailable = unavailableIds.includes(option.id)
+        const blocked = disabled || unavailable
+        const isSelected = selectedId === option.id && !blocked
         const cardId = `${name}-${option.id || 'none'}`
         return <div key={option.id} className={`min-w-0 overflow-hidden rounded-2xl border-2 bg-[var(--surface)] transition ${uniformHeight ? 'flex flex-col' : ''} ${isSelected ? 'border-[var(--brand-primary)] bg-[var(--surface-muted)]' : 'border-[var(--border)] hover:border-[var(--brand-primary)]'}`}>
-          <button type="button" aria-pressed={isSelected} aria-labelledby={`${cardId}-name`} aria-describedby={`${option.description ? `${cardId}-description ` : ''}${cardId}-price`} onClick={() => onSelect(option.id)} className={`flex w-full cursor-pointer flex-col gap-2 p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)] ${uniformHeight && isSelected ? expandedContentHeight : contentHeight}`}>
+          <button type="button" disabled={blocked} aria-pressed={isSelected} aria-labelledby={`${cardId}-name`} aria-describedby={`${option.description ? `${cardId}-description ` : ''}${cardId}-price${unavailable ? ` ${cardId}-availability` : ''}`} onClick={() => onSelect(option.id)} className={`flex w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 flex-col gap-2 p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus)] ${uniformHeight && isSelected ? expandedContentHeight : contentHeight}`}>
             <span className="flex items-start justify-between gap-2">
               <span id={`${cardId}-name`} className="font-extrabold leading-5 text-[var(--text-primary)]">{option.name}</span>
-              <span aria-hidden="true" className={`shrink-0 rounded-full px-2 py-1 text-xs font-extrabold ${isSelected ? 'bg-[var(--brand-primary)] text-[var(--surface)]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>{isSelected ? 'Desmarcar' : 'Escolher'}</span>
+              <span aria-hidden="true" className={`shrink-0 rounded-full px-2 py-1 text-xs font-extrabold ${isSelected ? 'bg-[var(--brand-primary)] text-[var(--surface)]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>{unavailable ? 'Esgotado' : disabled ? 'Aguarde' : isSelected ? 'Desmarcar' : 'Escolher'}</span>
             </span>
             {option.description && <span id={`${cardId}-description`} className={`text-sm leading-5 text-[var(--text-secondary)] ${quantityControl && !isSelected ? 'line-clamp-3' : ''}`}>{option.description}</span>}
+            {unavailable && <span id={`${cardId}-availability`} className="sr-only">Esgotado</span>}
             <strong id={`${cardId}-price`} className="mt-auto text-base text-[var(--brand-primary)]">{formatCurrency(option.price)}</strong>
           </button>
           {isSelected && quantityControl && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-3">

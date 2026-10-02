@@ -46,6 +46,12 @@ const server = await createServer({
       const path = id.replaceAll('\\', '/')
       if (path.endsWith('/src/config/demoMode.ts')) return `export const isDemoMode = new URLSearchParams(location.search).has('demo'); export const demoOrderNotice = 'Demonstração: pedidos não são enviados'`
       if (path.endsWith('/src/services/orderService.ts')) return transport
+      if (path.endsWith('/src/services/pizzaAvailabilityService.ts')) return `
+        export function listenPizzaAvailability(callback) {
+          queueMicrotask(() => callback({ pizzaFlavorIds: [], borderIds: [], esfihaIds: [], beverageIds: [] }));
+          return () => {};
+        }
+      `
       if (path.endsWith('/src/lib/firebase.ts')) throw new Error('O teste de interface não pode carregar Firebase remoto.')
     },
   }],

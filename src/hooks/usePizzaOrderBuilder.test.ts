@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { usePizzaOrderBuilder } from './usePizzaOrderBuilder'
 
 function captureBuilder() {
@@ -38,3 +38,5 @@ describe('resultado da adição para avisos de sucesso', () => {
     }
   })
 })
+
+vi.mock('./usePizzaAvailability', () => ({ usePizzaAvailability: () => ({ availability: { pizzaFlavorIds: [], borderIds: [], esfihaIds: [], beverageIds: [] }, isLoading: false, error: null }) }))

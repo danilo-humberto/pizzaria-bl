@@ -19,6 +19,8 @@ Mantenha `VITE_DEMO_MODE=true` para explorar sem gravar. Para validar a integra�
 
 ## Verificação local
 
+O procedimento de publicação, validação em produção e retorno à versão anterior está em [docs/producao.md](docs/producao.md). A hospedagem confirmada é Firebase Hosting, site `pizzaria-bl`, com domínio padrão. Publicar e abrir para clientes dependem das liberações registradas nesse procedimento.
+
 ```bash
 npm test
 npm run build
@@ -50,7 +52,7 @@ O painel lê `PizzaOrderDocument` (`schemaVersion: 1`), mostra todas as linhas c
 
 Os indicadores por categoria somam unidades, sem duplicar pizzas meio a meio nem incluir cancelados. A restrição de exibição da métrica interna continua usando `VITE_SIZE_METRICS_ALLOWED_EMAIL`, preservada por compatibilidade.
 
-A disponibilidade usa `storeSettings/pizzaAvailability`: listas de IDs esgotados em `pizzaFlavorIds`, `borderIds`, `esfihaIds` e `beverageIds`, com `updatedAt` e `updatedBy`. Documento ausente significa tudo disponível. A gravação usa transação para preservar alterações concorrentes. Esgotar um sabor bloqueia a seleção declarada desse sabor, inclusive meio a meio. A montagem pública confere a disponibilidade ao enviar; o catálogo não oculta opções esgotadas durante a escolha.
+A disponibilidade usa `storeSettings/pizzaAvailability`: listas de IDs esgotados em `pizzaFlavorIds`, `borderIds`, `esfihaIds` e `beverageIds`, com `updatedAt` e `updatedBy`. Documento ausente significa tudo disponível. A gravação usa transação para preservar alterações concorrentes. Esgotar um sabor bloqueia a seleção declarada desse sabor, inclusive meio a meio. A montagem pública acompanha a disponibilidade em tempo real: opções esgotadas permanecem visíveis e desabilitadas, incluindo meio a meio, bordas, esfihas e bebidas. Itens já adicionados são preservados; se esgotarem, o cliente deve removê-los ou ajustar a borda antes de finalizar. A transação confere novamente a disponibilidade ao enviar.
 
 Valide com pedidos fictícios e `npm run test:rules` no emulador `demo-pizzaria-bl`. A liberação de pedidos reais fica para a etapa 8.
 
