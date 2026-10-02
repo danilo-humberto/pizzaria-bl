@@ -1,6 +1,8 @@
 # Pizzaria BL — demonstração local
 
-Esta cópia independente usa a identidade visual da Pizzaria BL na página do cliente. O catálogo, as fotos e os textos comerciais de açaí permanecem nesta fase. O administrativo mantém o visual original.
+Esta cópia independente usa a identidade visual e o cardápio da Pizzaria BL. A montagem de pizzas, esfihas e bebidas funciona em demonstração. O administrativo ainda aguarda a adaptação da etapa 6.
+
+A integração usa exclusivamente o projeto `pizzaria-bl`, no plano Spark, mantendo a abordagem de validação do açaí. As regras podem ser testadas no emulador com `npm run test:rules` e publicadas com `npm run deploy:rules`.
 
 As cores da pizzaria ficam nos tokens semânticos em `:root` de `src/index.css`. Os tokens antigos permanecem para o administrativo e para a integração futura.
 
@@ -13,7 +15,7 @@ npm run dev
 
 O modo de demonstração fica ativo sem arquivo `.env` e também com `VITE_DEMO_MODE=true`. Todos os ingredientes aparecem disponíveis localmente; as restrições de combinação e os cálculos de preço continuam ativos. É possível montar o pedido, preencher os dados e consultar o total, mas pedidos não são enviados nem salvos. O administrativo e o acompanhamento de pedidos exibem um aviso de indisponibilidade.
 
-Para usar a integração original com Firebase no futuro, defina `VITE_DEMO_MODE=false` e configure as variáveis `VITE_FIREBASE_*` conforme `.env.example`. Essa opção não é necessária para a demonstração.
+Mantenha `VITE_DEMO_MODE=true` até concluir as etapas 6 e 7. Configuração ausente, incompleta ou apontando para outro projeto mantém a demonstração mesmo com a flag `false`. As regras da pizzaria não aceitam o formato antigo de pedidos de açaí.
 
 ## Verificação local
 
@@ -28,9 +30,11 @@ O build também executa o TypeScript. O projeto não possui script de lint.
 
 - A montagem fica somente na memória: recarregar a página reinicia o pedido.
 - O envio, o acompanhamento e o administrativo não funcionam no modo de demonstração.
-- O catálogo, as imagens e os textos comerciais ainda são de açaí. A integração real com Firebase, o cardápio de pizzas e a adaptação do administrativo ficam para etapas futuras.
+- O contrato Firebase de pizza está preparado; a adaptação do administrativo e a conexão do envio/acompanhamento ficam para as etapas 6 e 7.
 
 ## Documentação original
+
+O conteúdo abaixo é referência histórica do projeto de açaí, inclusive serviços e telas ainda não adaptados. Para a pizzaria, use `.env.example`, mantenha a demonstração ativa e publique as regras somente no projeto `pizzaria-bl`.
 
 Landing page e sistema de pedidos para uma loja local de acai, com montagem personalizada do pedido, acompanhamento em tempo real e painel administrativo com Kanban operacional.
 

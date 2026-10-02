@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-pizzaria-bl \"vitest run tests/firestore.rules.test.ts\"",
+    "deploy:rules": "firebase deploy --only firestore:rules --project pizzaria-bl",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@tailwindcss/vite": "^4.3.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

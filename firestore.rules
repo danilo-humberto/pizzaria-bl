@@ -8,92 +8,76 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
     }
 
+    function hasPizzaSelectionLists(data) {
+      return data.keys().hasAll(['pizzaFlavorIds', 'borderIds', 'esfihaIds', 'beverageIds'])
+        && data.pizzaFlavorIds is list
+        && data.borderIds is list
+        && data.esfihaIds is list
+        && data.beverageIds is list;
+    }
+
     function hasValidAvailabilityShape() {
-      return request.resource.data.keys().hasAll([
-          'creamFlavorIds',
-          'fruitIds',
-          'toppingIds',
-          'syrupIds',
-          'updatedAt',
-          'updatedBy'
-        ])
-        && request.resource.data.keys().hasOnly([
-          'creamFlavorIds',
-          'fruitIds',
-          'toppingIds',
-          'syrupIds',
-          'updatedAt',
-          'updatedBy'
-        ])
-        && request.resource.data.creamFlavorIds is list
-        && request.resource.data.fruitIds is list
-        && request.resource.data.toppingIds is list
-        && request.resource.data.syrupIds is list
-        && request.resource.data.updatedAt is timestamp
-        && request.resource.data.updatedBy == request.auth.uid
-        && !request.resource.data.syrupIds.hasAny(['sem-calda']);
+      let data = request.resource.data;
+      return data.keys().hasAll(['updatedAt', 'updatedBy'])
+        && data.keys().hasOnly(['pizzaFlavorIds', 'borderIds', 'esfihaIds', 'beverageIds', 'updatedAt', 'updatedBy'])
+        && hasPizzaSelectionLists(data)
+        && data.updatedAt is timestamp
+        && data.updatedBy == request.auth.uid;
     }
 
-    function orderContainsIngredientIds() {
-      return request.resource.data.items.keys().hasAll([
-          'iceCreamFlavorIds',
-          'iceCreamFlavorId',
-          'size',
-          'fruitIds',
-          'toppingIds',
-          'syrupId'
-        ])
-        && request.resource.data.items.iceCreamFlavorIds is list
-        && request.resource.data.items.iceCreamFlavorIds.size() <= 2
-        && request.resource.data.items.iceCreamFlavorId is string
-        && request.resource.data.items.size is string
-        && (
-          request.resource.data.items.iceCreamFlavorIds.size() == 0
-            ? request.resource.data.items.iceCreamFlavorId == ''
-            : request.resource.data.items.iceCreamFlavorId == request.resource.data.items.iceCreamFlavorIds[0]
-        )
-        && request.resource.data.items.fruitIds is list
-        && request.resource.data.items.toppingIds is list
-        && request.resource.data.items.syrupId is string;
+    // Paridade com o açaí: valida o envelope e os IDs declarados.
+    // Preços, quantidades e correspondência entre linhas e IDs são validados no cliente.
+    function hasValidPizzaItems(items) {
+      return items is map
+        && items.keys().hasAll(['lines', 'observation'])
+        && items.keys().hasOnly(['lines', 'observation', 'pizzaFlavorIds', 'borderIds', 'esfihaIds', 'beverageIds'])
+        && items.lines is list
+        && items.lines.size() > 0
+        && items.observation is string
+        && hasPizzaSelectionLists(items)
+        && items.pizzaFlavorIds.size() + items.esfihaIds.size() + items.beverageIds.size() > 0;
     }
 
-    function selectedIngredientsAreAvailable() {
-      return !exists(/databases/$(database)/documents/storeSettings/ingredientAvailability) || (
-        !request.resource.data.items.iceCreamFlavorIds.hasAny(get(/databases/$(database)/documents/storeSettings/ingredientAvailability).data.creamFlavorIds)
-        && !request.resource.data.items.fruitIds.hasAny(get(/databases/$(database)/documents/storeSettings/ingredientAvailability).data.fruitIds)
-        && !request.resource.data.items.toppingIds.hasAny(get(/databases/$(database)/documents/storeSettings/ingredientAvailability).data.toppingIds)
-        && !(request.resource.data.items.syrupId in get(/databases/$(database)/documents/storeSettings/ingredientAvailability).data.syrupIds)
+    function selectedItemsAreAvailable() {
+      return !exists(/databases/$(database)/documents/storeSettings/pizzaAvailability) || (
+        !request.resource.data.items.pizzaFlavorIds.hasAny(get(/databases/$(database)/documents/storeSettings/pizzaAvailability).data.pizzaFlavorIds)
+        && !request.resource.data.items.borderIds.hasAny(get(/databases/$(database)/documents/storeSettings/pizzaAvailability).data.borderIds)
+        && !request.resource.data.items.esfihaIds.hasAny(get(/databases/$(database)/documents/storeSettings/pizzaAvailability).data.esfihaIds)
+        && !request.resource.data.items.beverageIds.hasAny(get(/databases/$(database)/documents/storeSettings/pizzaAvailability).data.beverageIds)
       );
     }
 
-    function selectedToppingsMatchSize() {
-      return request.resource.data.items.size != 'P'
-        || !request.resource.data.items.toppingIds.hasAny(['pacoca', 'canudo']);
-    }
-
     function hasValidNewOrderShape(orderId) {
-      return request.resource.data.keys().hasAll([
-          'publicCode',
-          'trackingCode',
-          'status',
-          'customer',
-          'items',
-          'payment',
-          'total',
-          'createdAt',
-          'updatedAt'
+      let data = request.resource.data;
+      return data.keys().hasAll([
+          'schemaVersion', 'publicCode', 'trackingCode', 'status', 'customer',
+          'fulfillment', 'items', 'payment', 'total', 'createdAt', 'updatedAt'
         ])
-        && request.resource.data.trackingCode == orderId
-        && request.resource.data.status == 'received'
-        && request.resource.data.publicCode is string
-        && request.resource.data.trackingCode is string
-        && request.resource.data.customer is map
-        && request.resource.data.items is map
-        && request.resource.data.payment is map
-        && request.resource.data.total is number
-        && request.resource.data.total >= 0
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && data.keys().hasOnly([
+          'schemaVersion', 'publicCode', 'trackingCode', 'status', 'customer',
+          'fulfillment', 'items', 'payment', 'total', 'createdAt', 'updatedAt'
+        ])
+        && data.schemaVersion == 1
+        && data.trackingCode == orderId
+        && data.status == 'received'
+        && data.publicCode is string && data.publicCode.size() > 0
+        && data.trackingCode is string
+        && data.fulfillment == 'pickup'
+        && data.customer is map
+        && data.customer.keys().hasAll(['name', 'phone'])
+        && data.customer.keys().hasOnly(['name', 'phone'])
+        && data.customer.name is string && data.customer.name.size() > 0
+        && data.customer.phone is string && data.customer.phone.size() > 0
+        && hasValidPizzaItems(data.items)
+        && data.payment is map
+        && data.payment.keys().hasAll(['method', 'needsChange'])
+        && data.payment.keys().hasOnly(['method', 'needsChange', 'changeFor'])
+        && data.payment.method in ['pix', 'card', 'cash']
+        && data.payment.needsChange is bool
+        && (!('changeFor' in data.payment) || data.payment.changeFor is number)
+        && data.total is number && data.total >= 0
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
     }
 
     match /admins/{userId} {
@@ -101,19 +85,17 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
-    match /storeSettings/ingredientAvailability {
+    match /storeSettings/pizzaAvailability {
       allow read: if true;
       allow create, update: if isAdmin() && hasValidAvailabilityShape();
       allow delete: if false;
     }
 
     match /orders/{orderId} {
+      // Mantém o acompanhamento por link do modelo original.
       allow get: if true;
       allow list: if isAdmin();
-      allow create: if hasValidNewOrderShape(orderId)
-        && orderContainsIngredientIds()
-        && selectedIngredientsAreAvailable()
-        && selectedToppingsMatchSize();
+      allow create: if hasValidNewOrderShape(orderId) && selectedItemsAreAvailable();
       allow update: if isAdmin();
       allow delete: if false;
     }
