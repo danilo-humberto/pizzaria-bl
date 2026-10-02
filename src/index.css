@@ -87,22 +87,27 @@
   --strawberry-500: oklch(64% 0.2 26);
   --banana-200: oklch(88% 0.1 96);
   --shadow-soft: 0 22px 60px oklch(12% 0.04 326 / 22%);
-  --admin-bg: oklch(96% 0.008 326);
-  --admin-surface: oklch(99% 0.006 326);
-  --admin-panel: oklch(98% 0.008 326);
-  --admin-column: oklch(97% 0.01 326);
-  --admin-border: oklch(89% 0.015 326);
-  --admin-muted-bg: oklch(94% 0.012 326);
-  --admin-ink: oklch(22% 0.035 326);
-  --admin-muted: oklch(46% 0.025 326);
-  --admin-plum: oklch(31% 0.11 326);
-  --admin-plum-hover: oklch(38% 0.13 326);
-  --admin-plum-soft: oklch(31% 0.11 326 / 10%);
-  --admin-leaf: oklch(45% 0.13 126);
-  --admin-leaf-hover: oklch(52% 0.15 126);
-  --admin-danger: oklch(45% 0.17 26);
-  --admin-danger-bg: oklch(45% 0.17 26 / 9%);
-  --admin-danger-border: oklch(45% 0.17 26 / 28%);
+  --admin-warning: oklch(45% 0.12 65);
+  --admin-warning-hover: oklch(39% 0.11 65);
+  --admin-warning-soft: oklch(86% 0.12 72 / 24%);
+  --admin-success-border: oklch(42% 0.12 145 / 30%);
+  --admin-overlay: oklch(17% 0.055 30 / 65%);
+  --admin-bg: var(--surface-muted);
+  --admin-surface: var(--surface-raised);
+  --admin-panel: var(--surface);
+  --admin-column: var(--surface-muted);
+  --admin-border: var(--border);
+  --admin-muted-bg: var(--surface-muted);
+  --admin-ink: var(--text-primary);
+  --admin-muted: var(--text-muted);
+  --admin-plum: var(--brand-primary);
+  --admin-plum-hover: var(--brand-primary-hover);
+  --admin-plum-soft: var(--brand-primary-soft);
+  --admin-leaf: var(--success);
+  --admin-leaf-hover: oklch(36% 0.11 145);
+  --admin-danger: var(--error);
+  --admin-danger-bg: var(--error-soft);
+  --admin-danger-border: var(--brand-primary-glow);
   color: var(--text-on-dark);
   background: var(--surface-dark);
   font-family: var(--font-sans);
@@ -167,9 +172,19 @@ a {
   background: var(--selection-bg);
 }
 
+.admin-app-shell {
+  background: var(--admin-bg);
+  color: var(--admin-ink);
+}
+
+.admin-app-shell :is(button, a):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
 .admin-app-shell ::selection {
-  color: var(--cream-50);
-  background: var(--berry-600);
+  color: var(--selection-text);
+  background: var(--selection-bg);
 }
 
 .fruit-float {

@@ -1,10 +1,10 @@
 # Pizzaria BL — demonstração local
 
-Esta cópia independente usa a identidade visual e o cardápio da Pizzaria BL. A montagem de pizzas, esfihas e bebidas funciona em demonstração. O administrativo ainda aguarda a adaptação da etapa 6.
+Esta cópia independente usa a identidade visual e o cardápio da Pizzaria BL. A montagem de pizzas, esfihas e bebidas funciona em demonstração. O administrativo apresenta e opera pedidos no contrato de pizza da etapa 5.
 
 A integração usa exclusivamente o projeto `pizzaria-bl`, no plano Spark, mantendo a abordagem de validação do açaí. As regras podem ser testadas no emulador com `npm run test:rules` e publicadas com `npm run deploy:rules`.
 
-As cores da pizzaria ficam nos tokens semânticos em `:root` de `src/index.css`. Os tokens antigos permanecem para o administrativo e para a integração futura.
+As cores da pizzaria ficam nos tokens semânticos em `:root` de `src/index.css`. O administrativo usa os mesmos tokens de marca, superfícies e estados. Os tokens antigos restantes atendem às telas legadas ainda não integradas.
 
 ## Executar a demonstração
 
@@ -30,7 +30,19 @@ O build também executa o TypeScript. O projeto não possui script de lint.
 
 - A montagem fica somente na memória: recarregar a página reinicia o pedido.
 - O envio, o acompanhamento e o administrativo não funcionam no modo de demonstração.
-- O contrato Firebase de pizza está preparado; a adaptação do administrativo e a conexão do envio/acompanhamento ficam para as etapas 6 e 7.
+- O administrativo está adaptado ao contrato Firebase de pizza; a conexão do envio/acompanhamento permanece para a etapa 7.
+
+## Administrativo de pizzas
+
+Fora do modo demonstração, `/admin/login` mantém a autenticação existente. As regras do Firestore exigem `admins/{uid}.active == true` para listar pedidos ou gravar status e disponibilidade; estar autenticado sozinho não concede essas permissões.
+
+O painel lê `PizzaOrderDocument` (`schemaVersion: 1`), mostra todas as linhas com quantidades, sabores, bordas, preços salvos e retirada na loja. O tamanho único vigente é Grande; não há adicionais avulsos além das bordas no contrato atual. Esfihas e bebidas são linhas próprias. A sequência continua Recebido → Em preparo → Pronto para retirada → Concluído, com cancelamento nos três estados ativos. Cancelados aparecem no histórico separado.
+
+Os indicadores por categoria somam unidades, sem duplicar pizzas meio a meio nem incluir cancelados. A restrição de exibição da métrica interna continua usando `VITE_SIZE_METRICS_ALLOWED_EMAIL`, preservada por compatibilidade.
+
+A disponibilidade usa `storeSettings/pizzaAvailability`: listas de IDs esgotados em `pizzaFlavorIds`, `borderIds`, `esfihaIds` e `beverageIds`, com `updatedAt` e `updatedBy`. Documento ausente significa tudo disponível. A gravação usa transação para preservar alterações concorrentes. Esgotar um sabor bloqueia a seleção declarada desse sabor, inclusive meio a meio, pelas regras já existentes. A montagem pública ainda não acompanha essas mudanças nesta fase.
+
+Valide com pedidos fictícios e `npm run test:rules` no emulador `demo-pizzaria-bl`. Não habilite pedidos reais antes da integração da etapa 7.
 
 ## Documentação original
 

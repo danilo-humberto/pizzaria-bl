@@ -8,32 +8,32 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { AdminLayout } from '../../components/admin/AdminLayout'
-import { useIngredientAvailability } from '../../hooks/useIngredientAvailability'
-import { setIngredientAvailability } from '../../services/ingredientAvailabilityService'
+import { usePizzaAvailability } from '../../hooks/usePizzaAvailability'
+import { setPizzaAvailability } from '../../services/pizzaAvailabilityService'
 import type {
-  AvailabilityCategoryDefinition,
-  AvailabilityItem,
-  IngredientCategory,
-} from '../../types/availability'
+  PizzaAvailabilityCategoryDefinition,
+  PizzaAvailabilityItem,
+  PizzaAvailabilityCategory,
+} from '../../utils/pizzaAvailability'
 import { cn } from '../../utils/cn'
 import {
-  availabilityCategories,
-  isIngredientAvailable,
-} from '../../utils/ingredientAvailability'
+  pizzaAvailabilityCategories,
+  isPizzaItemAvailable,
+} from '../../utils/pizzaAvailability'
 
 export function AdminAvailabilityPage() {
-  const { availability, isLoading, error: loadError } = useIngredientAvailability()
+  const { availability, isLoading, error: loadError } = usePizzaAvailability()
   const [updatingKey, setUpdatingKey] = useState<string | null>(null)
   const [updateError, setUpdateError] = useState('')
-  const [openCategory, setOpenCategory] = useState<IngredientCategory | null>('creamFlavors')
+  const [openCategory, setOpenCategory] = useState<PizzaAvailabilityCategory | null>('pizzaFlavorIds')
 
   const unavailableCount = useMemo(
     () =>
-      availabilityCategories.reduce(
+      pizzaAvailabilityCategories.reduce(
         (total, category) =>
           total +
           category.items.filter(
-            (item) => !isIngredientAvailable(availability, category.id, item.id),
+            (item) => !isPizzaItemAvailable(availability, category.id, item.id),
           ).length,
         0,
       ),
@@ -41,8 +41,8 @@ export function AdminAvailabilityPage() {
   )
 
   const handleToggle = async (
-    category: IngredientCategory,
-    item: AvailabilityItem,
+    category: PizzaAvailabilityCategory,
+    item: PizzaAvailabilityItem,
     nextAvailable: boolean,
   ) => {
     const key = `${category}:${item.id}`
@@ -50,7 +50,7 @@ export function AdminAvailabilityPage() {
     setUpdateError('')
 
     try {
-      await setIngredientAvailability(category, item.id, nextAvailable)
+      await setPizzaAvailability(category, item.id, nextAvailable)
     } catch (error) {
       console.error('[admin] Falha ao atualizar disponibilidade:', error)
       setUpdateError(`Não foi possível atualizar ${item.name}. Tente novamente.`)
@@ -71,11 +71,11 @@ export function AdminAvailabilityPage() {
             Disponibilidade
           </h2>
           <p className="mt-3 text-sm font-semibold leading-6 text-[var(--admin-muted)] sm:text-base">
-            Marque o que está disponível ou esgotado. A montagem do pedido é atualizada em tempo real.
+            Marque o que está disponível ou esgotado. As alterações ficam salvas para a operação da loja.
           </p>
         </div>
 
-        <div className="min-w-48 rounded-3xl border border-[oklch(89%_0.015_326_/_72%)] bg-[oklch(99%_0.006_326_/_76%)] px-5 py-4 shadow-[0_16px_40px_oklch(14%_0.05_326_/_7%)] backdrop-blur-xl">
+        <div className="min-w-48 rounded-3xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-5 py-4 shadow-[0_16px_40px_var(--shadow-color-soft)]">
           <p className="font-display text-4xl font-extrabold leading-none text-[var(--admin-danger)]">
             {unavailableCount}
           </p>
@@ -86,7 +86,7 @@ export function AdminAvailabilityPage() {
       </div>
 
       {(loadError || updateError) && (
-        <div className="mb-5 flex items-start gap-2 rounded-2xl border border-[var(--admin-danger-border)] bg-[var(--admin-danger-bg)] px-4 py-3 text-sm font-bold text-[var(--admin-danger)]">
+        <div role="alert" className="mb-5 flex items-start gap-2 rounded-2xl border border-[var(--admin-danger-border)] bg-[var(--admin-danger-bg)] px-4 py-3 text-sm font-bold text-[var(--admin-danger)]">
           <AlertTriangle className="mt-0.5 shrink-0" size={17} />
           {loadError ?? updateError}
         </div>
@@ -95,7 +95,7 @@ export function AdminAvailabilityPage() {
       {isLoading ? (
         <AvailabilitySkeleton />
       ) : loadError ? (
-        <div className="rounded-3xl border border-dashed border-[var(--admin-danger-border)] bg-[oklch(99%_0.006_326_/_62%)] px-5 py-14 text-center">
+        <div className="rounded-3xl border border-dashed border-[var(--admin-danger-border)] bg-[var(--admin-surface)] px-5 py-14 text-center">
           <AlertTriangle className="mx-auto text-[var(--admin-danger)]" size={30} />
           <h3 className="mt-4 font-display text-2xl font-extrabold">
             Disponibilidade não carregada
@@ -106,7 +106,7 @@ export function AdminAvailabilityPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {availabilityCategories.map((category) => (
+          {pizzaAvailabilityCategories.map((category) => (
             <AvailabilityCategory
               key={category.id}
               category={category}
@@ -126,14 +126,14 @@ export function AdminAvailabilityPage() {
 }
 
 type AvailabilityCategoryProps = {
-  category: AvailabilityCategoryDefinition
-  availability: ReturnType<typeof useIngredientAvailability>['availability']
+  category: PizzaAvailabilityCategoryDefinition
+  availability: ReturnType<typeof usePizzaAvailability>['availability']
   updatingKey: string | null
   isOpen: boolean
   onOpenChange: () => void
   onToggle: (
-    category: IngredientCategory,
-    item: AvailabilityItem,
+    category: PizzaAvailabilityCategory,
+    item: PizzaAvailabilityItem,
     nextAvailable: boolean,
   ) => Promise<void>
 }
@@ -147,17 +147,17 @@ function AvailabilityCategory({
   onToggle,
 }: AvailabilityCategoryProps) {
   const availableCount = category.items.filter((item) =>
-    isIngredientAvailable(availability, category.id, item.id),
+    isPizzaItemAvailable(availability, category.id, item.id),
   ).length
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-[oklch(89%_0.015_326_/_72%)] bg-[oklch(99%_0.006_326_/_72%)] shadow-[0_18px_48px_oklch(14%_0.05_326_/_7%)] backdrop-blur-xl">
+    <section className="overflow-hidden rounded-3xl border border-[var(--admin-border)] bg-[var(--admin-surface)] shadow-[0_18px_48px_var(--shadow-color-soft)]">
       <button
         type="button"
         aria-expanded={isOpen}
         aria-controls={`availability-${category.id}`}
         onClick={onOpenChange}
-        className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-[oklch(97%_0.012_326_/_72%)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--admin-plum)] sm:p-6"
+        className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-[var(--admin-muted-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--admin-plum)] sm:p-6"
       >
         <span className="min-w-0 flex-1">
           <span className="block font-display text-2xl font-extrabold text-[var(--admin-ink)]">
@@ -182,14 +182,14 @@ function AvailabilityCategory({
       {isOpen && (
         <div
           id={`availability-${category.id}`}
-          className="border-t border-[oklch(89%_0.015_326_/_72%)] p-5 sm:p-6"
+          className="border-t border-[var(--admin-border)] p-5 sm:p-6"
         >
           <p className="mb-4 text-sm font-extrabold text-[var(--admin-muted)] sm:hidden">
             {availableCount} de {category.items.length} disponíveis
           </p>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {category.items.map((item) => {
-              const isAvailable = isIngredientAvailable(availability, category.id, item.id)
+              const isAvailable = isPizzaItemAvailable(availability, category.id, item.id)
               const itemKey = `${category.id}:${item.id}`
 
               return (
@@ -211,7 +211,7 @@ function AvailabilityCategory({
 }
 
 type AvailabilityToggleProps = {
-  item: AvailabilityItem
+  item: PizzaAvailabilityItem
   isAvailable: boolean
   isUpdating: boolean
   disabled: boolean
@@ -235,19 +235,19 @@ function AvailabilityToggle({
       className={cn(
         'flex min-h-24 items-center gap-4 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--admin-plum)] disabled:cursor-wait disabled:opacity-65',
         isAvailable
-          ? 'border-[oklch(72%_0.14_126_/_30%)] bg-[oklch(72%_0.14_126_/_10%)]'
+          ? 'border-[var(--admin-success-border)] bg-[var(--success-soft)]'
           : 'border-[var(--admin-danger-border)] bg-[var(--admin-danger-bg)]',
       )}
     >
       <span
         className={cn(
           'relative h-8 w-14 shrink-0 rounded-full transition',
-          isAvailable ? 'bg-[var(--admin-leaf)]' : 'bg-[oklch(70%_0.03_326)]',
+          isAvailable ? 'bg-[var(--admin-leaf)]' : 'bg-[var(--disabled-bg)]',
         )}
       >
         <span
           className={cn(
-            'absolute top-1 grid h-6 w-6 place-items-center rounded-full bg-white shadow-sm transition',
+            'absolute top-1 grid h-6 w-6 place-items-center rounded-full bg-[var(--surface-raised)] shadow-sm transition',
             isAvailable ? 'left-7' : 'left-1',
           )}
         >
@@ -277,7 +277,7 @@ function AvailabilitySkeleton() {
       {Array.from({ length: 4 }).map((_, categoryIndex) => (
         <div
           key={categoryIndex}
-          className="rounded-3xl border border-[oklch(89%_0.015_326_/_72%)] bg-[oklch(99%_0.006_326_/_72%)] p-6"
+          className="rounded-3xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-6"
         >
           <div className="h-7 w-48 animate-pulse rounded-full bg-[var(--admin-muted-bg)]" />
           <div className="mt-2 h-4 w-72 max-w-full animate-pulse rounded-full bg-[var(--admin-muted-bg)]" />

@@ -1,59 +1,19 @@
-import type { Order } from '../types/order'
+import type { PizzaOrderDocument } from '../types/pizzaOrder'
 
-export type OrderSizeLabel = 'P' | 'M' | 'G'
+export type OrderItemCount = { kind: 'pizza' | 'esfiha' | 'beverage'; label: string; count: number }
 
-export type OrderSizeCount = {
-  size: OrderSizeLabel
-  count: number
-}
-
-const orderSizeLabels: OrderSizeLabel[] = ['P', 'M', 'G']
-
-function normalizeOrderSize(size?: string): OrderSizeLabel | null {
-  const normalizedSize = size?.trim().toLowerCase()
-
-  if (!normalizedSize) {
-    return null
-  }
-
-  if (normalizedSize === 'p' || normalizedSize.includes('pequeno') || normalizedSize.includes('300')) {
-    return 'P'
-  }
-
-  if (normalizedSize === 'm' || normalizedSize.includes('medio') || normalizedSize.includes('médio') || normalizedSize.includes('500')) {
-    return 'M'
-  }
-
-  if (normalizedSize === 'g' || normalizedSize.includes('grande') || normalizedSize.includes('700')) {
-    return 'G'
-  }
-
-  return null
-}
-
-export function countOrdersBySize(orders: Order[]): OrderSizeCount[] {
-  const counts = orderSizeLabels.reduce<Record<OrderSizeLabel, number>>(
-    (accumulator, size) => ({
-      ...accumulator,
-      [size]: 0,
-    }),
-    {
-      P: 0,
-      M: 0,
-      G: 0,
-    },
-  )
-
-  orders.forEach((order) => {
-    const size = normalizeOrderSize(order.items.size)
-
-    if (size) {
-      counts[size] += 1
+export function countOrderItems(orders: PizzaOrderDocument[]): OrderItemCount[] {
+  const counts: OrderItemCount[] = [
+    { kind: 'pizza', label: 'Pizzas grandes', count: 0 },
+    { kind: 'esfiha', label: 'Esfihas', count: 0 },
+    { kind: 'beverage', label: 'Bebidas', count: 0 },
+  ]
+  for (const order of orders) {
+    if (order.status === 'cancelled') continue
+    for (const item of order.items.lines) {
+      const group = counts.find((entry) => entry.kind === item.kind)
+      if (group) group.count += item.quantity
     }
-  })
-
-  return orderSizeLabels.map((size) => ({
-    size,
-    count: counts[size],
-  }))
+  }
+  return counts
 }

@@ -1,3 +1,4 @@
+import type { PizzaOrderDocument as Order } from "../../types/pizzaOrder";
 import {
   AlertTriangle,
   CircleCheck,
@@ -13,11 +14,11 @@ import { KanbanBoard } from "../../components/admin/KanbanBoard";
 import { OrderDetailsModal } from "../../components/admin/OrderDetailsModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { listenOrders, updateOrderStatus } from "../../services/orderService";
-import type { Order, OrderStatus } from "../../types/order";
+import type { OrderStatus } from "../../types/order";
 import { cn } from "../../utils/cn";
 import {
-  countOrdersBySize,
-  type OrderSizeCount,
+  countOrderItems,
+  type OrderItemCount,
 } from "../../utils/orderMetrics";
 import {
   formatOrderShortDateTime,
@@ -107,11 +108,11 @@ export function AdminOrdersPage() {
     () => orders.filter((order) => order.status === "cancelled").length,
     [orders],
   );
-  const sizeCounts = useMemo(
-    () => countOrdersBySize(activeOrders),
+  const itemCounts = useMemo(
+    () => countOrderItems(activeOrders),
     [activeOrders],
   );
-  const canViewSizeMetrics =
+  const canViewItemMetrics =
     user?.email?.trim().toLowerCase() === SIZE_METRICS_ALLOWED_EMAIL;
 
   const orderCounts = useMemo(
@@ -164,7 +165,7 @@ export function AdminOrdersPage() {
 
   return (
     <AdminLayout cancelledCount={cancelledCount}>
-      <div className="mb-8 grid gap-6 lg:grid-cols-[minmax(18rem,1fr)_minmax(42rem,64rem)] lg:items-center">
+      <div className="mb-8 grid gap-6 2xl:grid-cols-[minmax(14rem,1fr)_minmax(0,64rem)] lg:items-center">
         <div className="flex min-w-0 gap-5">
           <span className="mt-1 h-14 w-1 shrink-0 rounded-full bg-[var(--admin-leaf)]" />
           <div className="h-fit mt-2">
@@ -174,7 +175,7 @@ export function AdminOrdersPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div className="grid gap-4 min-[380px]:grid-cols-2 xl:grid-cols-4">
           {operationalOrderStatusColumns.map((status) => (
             <StatusStatCard
               key={status}
@@ -192,7 +193,7 @@ export function AdminOrdersPage() {
         </div>
       )}
 
-      {canViewSizeMetrics && <SizeMetrics counts={sizeCounts} />}
+      {canViewItemMetrics && <ItemMetrics counts={itemCounts} />}
 
       <KanbanBoard
         orders={activeOrders}
@@ -202,7 +203,7 @@ export function AdminOrdersPage() {
         onStatusChange={handleStatusChange}
       />
 
-      <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-[oklch(89%_0.015_326_/_72%)] bg-[oklch(99%_0.006_326_/_76%)] px-5 py-4 text-sm font-semibold text-[var(--admin-muted)] shadow-[0_18px_42px_oklch(14%_0.05_326_/_8%)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-5 py-4 text-sm font-semibold text-[var(--admin-muted)] shadow-[0_18px_42px_var(--shadow-color-soft)] sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-2">
             <Clock3 size={18} />
@@ -218,7 +219,7 @@ export function AdminOrdersPage() {
 
         <button
           type="button"
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border-l border-[oklch(89%_0.015_326_/_80%)] px-4 font-extrabold text-[var(--admin-plum)] transition hover:bg-[var(--admin-plum-soft)] disabled:cursor-wait disabled:opacity-75 sm:pl-6"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-l border-[var(--admin-border)] px-4 font-extrabold text-[var(--admin-plum)] transition hover:bg-[var(--admin-plum-soft)] disabled:cursor-wait disabled:opacity-75 sm:pl-6"
           disabled={isRefreshing}
           onClick={handleRefresh}
         >
@@ -239,31 +240,31 @@ export function AdminOrdersPage() {
   );
 }
 
-type SizeMetricsProps = {
-  counts: OrderSizeCount[];
+type ItemMetricsProps = {
+  counts: OrderItemCount[];
 };
 
-function SizeMetrics({ counts }: SizeMetricsProps) {
+function ItemMetrics({ counts }: ItemMetricsProps) {
   return (
-    <section className="mb-5 rounded-2xl border border-[oklch(89%_0.015_326_/_72%)] bg-[oklch(99%_0.006_326_/_72%)] px-5 py-4 shadow-[0_14px_36px_oklch(14%_0.05_326_/_7%)] backdrop-blur-xl">
+    <section className="mb-5 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-5 py-4 shadow-[0_14px_36px_var(--shadow-color-soft)]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-display text-xl font-extrabold text-[var(--admin-ink)]">
-            Pedidos por tamanho
+            Itens dos pedidos
           </h3>
           <p className="mt-1 text-sm font-semibold text-[var(--admin-muted)]">
-            Contagem interna dos pedidos válidos.
+            Unidades de pizzas, esfihas e bebidas em pedidos não cancelados.
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 sm:min-w-[24rem]">
+        <div className="grid gap-3 sm:grid-cols-3 sm:min-w-[24rem]">
           {counts.map((item) => (
             <div
-              key={item.size}
-              className="rounded-2xl border border-[oklch(89%_0.015_326_/_72%)] bg-[oklch(99%_0.006_326_/_68%)] px-4 py-3 text-center"
+              key={item.kind}
+              className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-3 text-center"
             >
               <p className="text-sm font-extrabold text-[var(--admin-muted)]">
-                Tamanho {item.size}
+                {item.label}
               </p>
               <p className="mt-1 font-display text-3xl font-extrabold leading-none text-[var(--admin-leaf)]">
                 {formatStatusCount(item.count)}
@@ -286,7 +287,7 @@ function StatusStatCard({ status, count }: StatusStatCardProps) {
   const stats = statusStats[status];
 
   return (
-    <article className="flex min-h-[5.65rem] items-center gap-4 rounded-2xl border border-[oklch(98%_0.012_326_/_88%)] bg-[oklch(99%_0.006_326_/_78%)] px-4 shadow-[0_14px_38px_oklch(14%_0.05_326_/_8%)] backdrop-blur-xl">
+    <article className="flex min-h-[5.65rem] items-center gap-4 rounded-2xl border border-[var(--border-on-dark)] bg-[var(--admin-surface)] px-4 shadow-[0_14px_38px_var(--shadow-color-soft)]">
       <div
         className={cn(
           "grid h-14 w-14 shrink-0 place-items-center rounded-full",
@@ -305,7 +306,7 @@ function StatusStatCard({ status, count }: StatusStatCardProps) {
         >
           {formatStatusCount(count)}
         </p>
-        <p className="mt-1 truncate text-sm font-extrabold text-[var(--admin-ink)]">
+        <p className="mt-1 text-sm font-extrabold text-[var(--admin-ink)]">
           {orderStatusLabels[status]}
         </p>
       </div>

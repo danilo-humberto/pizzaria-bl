@@ -1,14 +1,13 @@
+import { useEffect, useRef } from "react";
+import { pizzaOrderRules } from "../../data/pizzaMenu";
+import { pizzaItemLabels } from "../../utils/pizzaOrderDisplay";
+import type { PizzaOrderDocument as Order } from "../../types/pizzaOrder";
 import { ExternalLink, X } from "lucide-react";
-import type { Order, OrderStatus } from "../../types/order";
+import type { OrderStatus } from "../../types/order";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
   canCancelOrder,
   formatOrderDate,
-  formatOrderPortions,
-  formatOrderSyrup,
-  getOrderFruitPortions,
-  getOrderIceCreamFlavors,
-  getOrderToppingPortions,
   getNextOrderActionLabel,
   getNextOrderStatus,
   getPaymentLabel,
@@ -28,6 +27,19 @@ export function OrderDetailsModal({
   onClose,
   onStatusChange,
 }: OrderDetailsModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const isOpen = Boolean(order);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!isOpen || !dialog) return;
+    const previousFocus = document.activeElement;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      dialog.close();
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, [isOpen]);
+
   if (!order) {
     return null;
   }
@@ -35,16 +47,16 @@ export function OrderDetailsModal({
   const trackingUrl = `/pedido/${order.trackingCode}`;
   const nextStatus = getNextOrderStatus(order.status);
   const nextActionLabel = getNextOrderActionLabel(order.status);
-  const selectedIceCreamFlavors = getOrderIceCreamFlavors(order.items);
 
   return (
-    <div
-      className="fixed inset-0 z-[90] bg-[oklch(12%_0.04_326_/_62%)] px-4 py-6"
-      role="dialog"
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl overflow-hidden rounded-2xl bg-[var(--admin-surface)] p-0 backdrop:bg-[var(--admin-overlay)]"
       aria-modal="true"
       aria-labelledby="admin-order-modal-title"
     >
-      <div className="mx-auto flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-[var(--admin-surface)] text-[var(--admin-ink)] shadow-2xl">
+      <div className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-[var(--admin-surface)] text-[var(--admin-ink)] shadow-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-[var(--admin-border)] px-5 py-4">
           <div>
             <p className="text-sm font-bold text-[var(--admin-muted)]">
@@ -59,9 +71,10 @@ export function OrderDetailsModal({
           </div>
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded-lg text-[var(--admin-muted)] transition hover:bg-[var(--admin-muted-bg)] hover:text-[var(--admin-ink)]"
+            className="grid h-12 w-12 place-items-center rounded-lg text-[var(--admin-muted)] transition hover:bg-[var(--admin-muted-bg)] hover:text-[var(--admin-ink)]"
             onClick={onClose}
             aria-label="Fechar detalhes"
+            autoFocus
           >
             <X size={20} />
           </button>
@@ -96,38 +109,21 @@ export function OrderDetailsModal({
             </DetailsSection>
 
             <DetailsSection title="Itens do pedido">
-              <DetailLine
-                label="Produto"
-                value={order.items.productName ?? "Não informado"}
-              />
-              <DetailLine
-                label="Tamanho"
-                value={order.items.size ?? "Não informado"}
-              />
-              {selectedIceCreamFlavors.length > 0 && (
-                <DetailLine
-                  label={
-                    selectedIceCreamFlavors.length > 1 ? "Sabores" : "Sabor"
-                  }
-                  value={selectedIceCreamFlavors.join(", ")}
-                />
-              )}
-              <DetailLine
-                label="Frutas"
-                value={formatOrderPortions(getOrderFruitPortions(order.items))}
-              />
-              <DetailLine
-                label="Guloseimas"
-                value={formatOrderPortions(getOrderToppingPortions(order.items))}
-              />
-              <DetailLine
-                label="Calda"
-                value={formatOrderSyrup(order.items)}
-              />
-              <DetailLine
-                label="Observação"
-                value={order.items.observation ?? "Sem observação"}
-              />
+              <DetailLine label="Atendimento" value="Retirada na loja" />
+              <ul className="divide-y divide-[var(--admin-border)]">
+                {order.items.lines.map((item, index) => (
+                  <li key={index} className="space-y-2 py-3 first:pt-0">
+                    <p className="break-words font-extrabold">{item.quantity}× {pizzaItemLabels[item.kind]}: {item.name}</p>
+                    {item.kind === "pizza" && <>
+                      <DetailLine label="Tamanho" value={pizzaOrderRules.size} />
+                      <DetailLine label="Borda" value={item.borderName || "Sem borda recheada"} />
+                    </>}
+                    <DetailLine label="Unitário" value={formatCurrency(item.unitPriceCents / 100)} />
+                    <DetailLine label="Subtotal" value={formatCurrency(item.subtotalCents / 100)} />
+                  </li>
+                ))}
+              </ul>
+              <DetailLine label="Observação" value={order.items.observation || "Sem observação"} />
             </DetailsSection>
 
             <DetailsSection title="Pagamento">
@@ -158,7 +154,7 @@ export function OrderDetailsModal({
           {nextStatus && nextActionLabel && (
             <button
               type="button"
-              className="min-h-10 rounded-lg bg-[var(--admin-plum)] px-4 text-sm font-extrabold text-[var(--cream-50)] transition hover:bg-[var(--admin-plum-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-12 rounded-lg bg-[var(--admin-plum)] px-4 text-sm font-extrabold text-[var(--text-on-dark)] transition hover:bg-[var(--admin-plum-hover)] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isUpdating}
               onClick={() => onStatusChange(order.trackingCode, nextStatus)}
             >
@@ -168,7 +164,7 @@ export function OrderDetailsModal({
           {canCancelOrder(order.status) && (
             <button
               type="button"
-              className="min-h-10 rounded-lg border border-[var(--admin-danger-border)] px-4 text-sm font-bold text-[var(--admin-danger)] transition hover:bg-[var(--admin-danger-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-12 rounded-lg border border-[var(--admin-danger-border)] px-4 text-sm font-bold text-[var(--admin-danger)] transition hover:bg-[var(--admin-danger-bg)] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isUpdating}
               onClick={() => onStatusChange(order.trackingCode, "cancelled")}
             >
@@ -177,14 +173,14 @@ export function OrderDetailsModal({
           )}
           <button
             type="button"
-            className="min-h-10 rounded-lg border border-[var(--admin-border)] px-4 text-sm font-bold text-[var(--admin-ink)] transition hover:bg-[var(--admin-muted-bg)]"
+            className="min-h-12 rounded-lg border border-[var(--admin-border)] px-4 text-sm font-bold text-[var(--admin-ink)] transition hover:bg-[var(--admin-muted-bg)]"
             onClick={onClose}
           >
             Fechar
           </button>
         </footer>
       </div>
-    </div>
+    </dialog>
   );
 }
 

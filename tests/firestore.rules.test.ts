@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore'
 import { buildPizzaOrderDocument } from '../src/utils/buildPizzaOrderDocument'
 import { emptyPizzaAvailability } from '../src/types/pizzaAvailability'
+import { listenOrders, updateOrderStatus } from '../src/services/orderService'
+import { setPizzaAvailability, listenPizzaAvailability } from '../src/services/pizzaAvailabilityService'
+
+const session = vi.hoisted(() => ({ db: null as any, auth: { currentUser: null as { uid: string } | null } }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return session.db }, auth: session.auth }))
 
 // Só roda com emulador local, sempre em projeto demo sem recursos reais.
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST
@@ -48,6 +53,44 @@ suite('Firestore — permissões e contrato da pizzaria', () => {
     await assertSucceeds(updateDoc(doc(db, 'orders', 'test-order'), { status: 'preparing', updatedAt: serverTimestamp() }))
     await assertSucceeds(setDoc(doc(db, 'storeSettings', 'pizzaAvailability'), availability(uid)))
     await assertSucceeds(updateDoc(doc(db, 'storeSettings', 'pizzaAvailability'), { pizzaFlavorIds: ['calabresa'], updatedAt: serverTimestamp() }))
+  })
+  it('serviços administrativos leem pizza, avançam até retirada e persistem cancelamento', async () => {
+    session.db = signed(adminIds[0])
+    session.auth.currentUser = { uid: adminIds[0] }
+    const orders = await new Promise<Parameters<Parameters<typeof listenOrders>[0]>[0]>((resolve, reject) => {
+      const stop = listenOrders((value) => { stop(); resolve(value) }, reject)
+    })
+    expect(orders[0].items.lines[0]).toMatchObject({ name: 'Calabresa / Mussarela', quantity: 2, borderName: 'Borda de catupiry' })
+    for (const status of ['preparing', 'ready_for_pickup', 'completed'] as const) {
+      await updateOrderStatus('test-order', status)
+      expect((await getDoc(doc(session.db, 'orders', 'test-order'))).data()?.status).toBe(status)
+    }
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'orders', 'cancel-order'), { ...order(), trackingCode: 'cancel-order' }))
+    await updateOrderStatus('cancel-order', 'cancelled')
+    expect((await getDoc(doc(session.db, 'orders', 'cancel-order'))).data()?.status).toBe('cancelled')
+  })
+  it('serviço de disponibilidade cria, preserva outras categorias e restaura opções', async () => {
+    session.db = signed(adminIds[0])
+    session.auth.currentUser = { uid: adminIds[0] }
+    await Promise.all([
+      setPizzaAvailability('pizzaFlavorIds', 'calabresa', false),
+      setPizzaAvailability('borderIds', 'catupiry', false),
+    ])
+    await setPizzaAvailability('esfihaIds', 'frango', false)
+    await setPizzaAvailability('beverageIds', 'agua-mineral', false)
+    await setPizzaAvailability('borderIds', 'catupiry', true)
+    const persisted = (await getDoc(doc(session.db, 'storeSettings', 'pizzaAvailability'))).data()
+    expect(persisted).toMatchObject({ pizzaFlavorIds: ['calabresa'], borderIds: [], esfihaIds: ['frango'], beverageIds: ['agua-mineral'], updatedBy: adminIds[0] })
+    const availability = await new Promise((resolve, reject) => {
+      const stop = listenPizzaAvailability((value) => { stop(); resolve(value) }, reject)
+    })
+    expect(availability).toEqual({ pizzaFlavorIds: ['calabresa'], borderIds: [], esfihaIds: ['frango'], beverageIds: ['agua-mineral'] })
+  })
+  it.each(['visitor', 'unapproved-user', 'inactive-admin'])('serviços não concedem escrita a %s', async (uid) => {
+    session.db = uid === 'visitor' ? anonymous() : signed(uid)
+    session.auth.currentUser = uid === 'visitor' ? null : { uid }
+    await expect(setPizzaAvailability('pizzaFlavorIds', 'calabresa', false)).rejects.toThrow()
+    await assertFails(updateOrderStatus('test-order', 'cancelled'))
   })
   it.each(['visitor', 'unapproved-user', 'inactive-admin'])('%s não lista pedidos nem altera status/disponibilidade', async (uid) => {
     const db = uid === 'visitor' ? anonymous() : signed(uid)

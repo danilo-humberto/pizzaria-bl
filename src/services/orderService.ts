@@ -1,3 +1,5 @@
+import type { PizzaOrderDocument } from '../types/pizzaOrder'
+import { readPizzaOrder } from '../utils/readPizzaOrder'
 import { collection, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { fruits } from '../data/fruits'
 import { getIceCreamFlavorsByIds } from '../data/iceCreamFlavors'
@@ -158,18 +160,17 @@ export function listenOrderByTrackingCode(
   )
 }
 
-export function listenOrders(callback: (orders: Order[]) => void, onError?: (error: Error) => void) {
+export function listenOrders(callback: (orders: PizzaOrderDocument[]) => void, onError?: (error: Error) => void) {
   const ordersQuery = query(collection(db, ORDERS_COLLECTION), orderBy('createdAt', 'desc'))
 
   return onSnapshot(
     ordersQuery,
     (snapshot) => {
-      const orders = snapshot.docs.map((orderDoc) => ({
-        id: orderDoc.id,
-        ...orderDoc.data(),
-      })) as Order[]
-
-      callback(orders)
+      try {
+        callback(snapshot.docs.map((orderDoc) => readPizzaOrder(orderDoc.data())))
+      } catch {
+        onError?.(new Error('Há um pedido incompatível com o formato de pizza. Confira os dados antes de operar.'))
+      }
     },
     (error) => {
       console.error('[orderService] Erro ao listar pedidos no Firestore:', error)

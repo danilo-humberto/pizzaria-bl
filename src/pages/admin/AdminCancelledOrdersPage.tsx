@@ -1,9 +1,11 @@
+import { getPizzaOrderSummary } from '../../utils/pizzaOrderDisplay'
+import type { PizzaOrderDocument as Order } from "../../types/pizzaOrder";
 import { AlertTriangle, Ban, Clock, Eye, Phone } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AdminLayout } from '../../components/admin/AdminLayout'
 import { OrderDetailsModal } from '../../components/admin/OrderDetailsModal'
 import { listenOrders } from '../../services/orderService'
-import type { Order, OrderStatus } from '../../types/order'
+import type { OrderStatus } from '../../types/order'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { formatOrderDate, formatOrderTime, getPaymentLabel, orderStatusTheme } from '../../utils/orderDisplay'
 
@@ -53,7 +55,7 @@ export function AdminCancelledOrdersPage() {
           </p>
         </div>
 
-        <div className="rounded-3xl border border-[var(--admin-danger-border)] bg-[oklch(99%_0.006_326_/_66%)] px-5 py-4 shadow-[0_16px_40px_oklch(14%_0.05_326_/_7%)] backdrop-blur-xl">
+        <div className="rounded-3xl border border-[var(--admin-danger-border)] bg-[var(--admin-surface)] px-5 py-4 shadow-[0_16px_40px_var(--shadow-color-soft)]">
           <p className="font-display text-4xl font-extrabold leading-none text-[var(--admin-danger)]">
             {cancelledOrders.length}
           </p>
@@ -73,7 +75,7 @@ export function AdminCancelledOrdersPage() {
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-52 rounded-3xl border border-[oklch(89%_0.015_326_/_68%)] bg-[oklch(99%_0.006_326_/_60%)] p-4 shadow-[0_18px_48px_oklch(14%_0.05_326_/_8%)] backdrop-blur-xl"
+              className="h-52 rounded-3xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 shadow-[0_18px_48px_var(--shadow-color-soft)]"
             >
               <div className="h-5 w-28 rounded-full bg-[var(--admin-muted-bg)]" />
               <div className="mt-5 h-24 rounded-2xl bg-[var(--admin-muted-bg)]" />
@@ -82,7 +84,7 @@ export function AdminCancelledOrdersPage() {
           ))}
         </div>
       ) : cancelledOrders.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[oklch(89%_0.015_326_/_82%)] bg-[oklch(99%_0.006_326_/_62%)] px-5 py-14 text-center shadow-[0_18px_48px_oklch(14%_0.05_326_/_7%)] backdrop-blur-xl">
+        <div className="rounded-3xl border border-dashed border-[var(--admin-border)] bg-[var(--admin-surface)] px-5 py-14 text-center shadow-[0_18px_48px_var(--shadow-color-soft)]">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--admin-danger-bg)] text-[var(--admin-danger)]">
             <Ban size={24} />
           </div>
@@ -116,7 +118,7 @@ type CancelledOrderCardProps = {
 
 function CancelledOrderCard({ order, onOpenDetails }: CancelledOrderCardProps) {
   return (
-    <article className="rounded-3xl border border-[var(--admin-danger-border)] bg-[oklch(99%_0.006_326_/_74%)] p-4 shadow-[0_18px_48px_oklch(14%_0.05_326_/_8%)] backdrop-blur-xl">
+    <article className="rounded-3xl border border-[var(--admin-danger-border)] bg-[var(--admin-surface)] p-4 shadow-[0_18px_48px_var(--shadow-color-soft)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-base font-extrabold">{order.publicCode}</p>
@@ -137,20 +139,20 @@ function CancelledOrderCard({ order, onOpenDetails }: CancelledOrderCardProps) {
           <Phone size={14} />
           {order.customer.phone}
         </p>
-        <p className="font-bold">{order.items.productName ?? 'Produto não informado'}</p>
+        <p className="font-bold">{getPizzaOrderSummary(order)}</p>
         <p className="text-[var(--admin-muted)]">
-          {order.items.size ?? 'Sem tamanho'} • {getPaymentLabel(order.payment.method)} • {formatOrderTime(order.updatedAt)}
+          Retirada na loja • {getPaymentLabel(order.payment.method)} • {formatOrderTime(order.updatedAt)}
         </p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-[oklch(89%_0.015_326_/_70%)] pt-4">
+      <div className="mt-4 flex items-center justify-between border-t border-[var(--admin-border)] pt-4">
         <div>
           <span className="text-xs font-extrabold text-[var(--admin-muted)]">Total</span>
           <strong className="block text-lg text-[var(--admin-leaf)]">{formatCurrency(order.total)}</strong>
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[oklch(89%_0.015_326_/_82%)] px-3 text-sm font-bold text-[var(--admin-ink)] transition hover:bg-[var(--admin-muted-bg)]"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] px-3 text-sm font-bold text-[var(--admin-ink)] transition hover:bg-[var(--admin-muted-bg)]"
           onClick={() => onOpenDetails(order.trackingCode)}
         >
           <Eye size={15} />
