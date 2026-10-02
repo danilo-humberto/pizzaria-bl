@@ -1,5 +1,5 @@
 import { CheckCircle2, Clipboard, ExternalLink, RotateCcw, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 
@@ -19,14 +19,30 @@ export function OrderConfirmationModal({
   onNewOrder,
 }: OrderConfirmationModalProps) {
   const navigate = useNavigate()
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const [copyFeedback, setCopyFeedback] = useState('Copiar link')
   const absoluteTrackingUrl = useMemo(() => {
-    if (!trackingUrl) {
+    if (!trackingUrl || typeof window === 'undefined') {
       return ''
     }
 
     return new URL(trackingUrl, window.location.origin).toString()
   }, [trackingUrl])
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!isOpen || !dialog) return
+    const trigger = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    setCopyFeedback('Copiar link')
+    dialog.showModal()
+    document.body.style.overflow = 'hidden'
+    return () => {
+      dialog.close()
+      document.body.style.overflow = previousOverflow
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus({ preventScroll: true })
+    }
+  }, [isOpen])
 
   if (!isOpen || !publicCode || !trackingUrl) {
     return null
@@ -49,10 +65,10 @@ export function OrderConfirmationModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[80] grid place-items-center bg-[var(--surface-dark-translucent)] px-4 py-6 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-[2rem] border-0 bg-[var(--surface)] p-0 backdrop:bg-[var(--surface-dark-translucent)]"
       aria-labelledby="order-confirmation-title"
     >
       <div className="w-full max-w-lg overflow-hidden rounded-[2rem] bg-[var(--surface)] text-[var(--text-primary)] panel-shadow">
@@ -88,7 +104,7 @@ export function OrderConfirmationModal({
             </div>
             <div className="rounded-2xl bg-[var(--surface-muted)] p-4">
               <p className="text-xs font-extrabold uppercase text-[var(--text-muted)]">Link de acompanhamento</p>
-              <p className="mt-2 break-all text-sm font-bold leading-6 text-[var(--text-secondary)]">{trackingUrl}</p>
+              <a href={trackingUrl} className="mt-2 block break-all text-sm font-bold leading-6 text-[var(--text-secondary)] underline">{absoluteTrackingUrl}</a>
             </div>
           </div>
 
@@ -106,6 +122,6 @@ export function OrderConfirmationModal({
           </Button>
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

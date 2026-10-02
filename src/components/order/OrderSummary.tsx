@@ -1,11 +1,11 @@
 import { ClipboardList, CreditCard, MapPin, Phone, ShoppingBasket, User } from 'lucide-react'
-import { demoOrderNotice } from '../../config/demoMode'
+import { isDemoMode } from '../../config/demoMode'
 import { paymentMethods } from '../../data/paymentMethods'
 import { pizzaBorders } from '../../data/pizzaMenu'
 import type { PizzaOrderBuilder } from '../../hooks/usePizzaOrderBuilder'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { getPizzaItemTotalCents, getPizzaOption } from '../../utils/pizzaOrder'
-import { Button } from '../ui/Button'
+import { FinalizeOrderButton } from './FinalizeOrderButton'
 
 type OrderSummaryProps = { builder: PizzaOrderBuilder }
 
@@ -25,10 +25,8 @@ export function OrderSummary({ builder }: OrderSummaryProps) {
       <SummaryLine icon={<CreditCard size={18} />} label="Pagamento" value={payment?.name ?? 'Não selecionado'} />
       <SummaryLine icon={<MapPin size={18} />} label="Modalidade" value="Retirada no local" />
       {order.observation.trim() && <div className="rounded-2xl bg-[var(--surface-muted)] p-4"><p className="text-sm font-extrabold">Observação</p><p className="mt-1 text-sm text-[var(--text-secondary)]">{order.observation.trim()}</p></div>}
-      <div className="rounded-2xl bg-[var(--surface-muted)] p-4 text-sm font-bold leading-6" role="status">{demoOrderNotice}</div>
-      {!validation.isValid && <div className="rounded-2xl bg-[var(--surface-muted)] p-4 text-sm"><p className="font-extrabold text-[var(--error)]">Faltam dados obrigatórios</p><p className="mt-1 text-[var(--text-secondary)]">{validation.errors[0]}</p></div>}
-      <div className="summary-total flex items-center justify-between border-t border-[var(--border)] pt-4"><span className="font-extrabold">Total estimado</span><strong className="font-display text-3xl text-[var(--brand-primary)]">{formatCurrency(total)}</strong></div>
-      <Button variant="leaf" className="min-h-14 w-full" disabled>Finalizar pedido</Button>
+      <div className="summary-total flex items-center justify-between border-t border-[var(--border)] pt-4"><span className="font-extrabold">{isDemoMode ? 'Total estimado' : 'Total'}</span><strong className="font-display text-3xl text-[var(--brand-primary)]">{formatCurrency(total)}</strong></div>
+      <FinalizeOrderButton validation={validation} isFinalizing={builder.isFinalizing} finalizeError={builder.finalizeError} onFinalize={builder.finalizeOrder} isConfirmed={Boolean(builder.confirmationData)} />
     </div>
   </aside>
 }

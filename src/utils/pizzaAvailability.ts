@@ -28,3 +28,16 @@ export function normalizePizzaAvailability(value: unknown): PizzaAvailability {
 export function isPizzaItemAvailable(availability: PizzaAvailability, category: PizzaAvailabilityCategory, id: string) {
   return !availability[category].includes(id)
 }
+
+export function getUnavailablePizzaSelections(selections: PizzaAvailability, availability: PizzaAvailability) {
+  return pizzaAvailabilityCategories.flatMap((category) => category.items.filter((item) =>
+    selections[category.id].includes(item.id) && availability[category.id].includes(item.id),
+  ).map((item) => item.name))
+}
+
+export class UnavailablePizzaItemsError extends Error {
+  constructor(names: string[]) {
+    super(`Indisponível no momento: ${names.join(', ')}. Ajuste os itens escolhidos e tente novamente.`)
+    this.name = 'UnavailablePizzaItemsError'
+  }
+}

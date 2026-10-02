@@ -25,7 +25,7 @@ export type PersistedPizzaOrderItem = Omit<PizzaOrderItem, 'id'> & {
   borderName?: string
 }
 
-// Contrato para as etapas 6 e 7; não conecta o envio da demonstração.
+// Contrato compartilhado pelo envio, acompanhamento e administrativo.
 export type PizzaOrderDocument = {
   schemaVersion: 1
   publicCode: string

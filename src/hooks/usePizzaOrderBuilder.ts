@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
+import { demoOrderNotice, isDemoMode } from '../config/demoMode'
 import { pizzaBorders, pizzaOrderRules } from '../data/pizzaMenu'
 import { SHOW_CASH_CHANGE_DETAILS } from '../data/paymentMethods'
-import type { CustomerData, PaymentData, PaymentMethod } from '../types/order'
+import type { CustomerData, OrderConfirmationData, PaymentData, PaymentMethod } from '../types/order'
+import { UnavailablePizzaItemsError } from '../utils/pizzaAvailability'
 import type { PizzaAdditionResult, PizzaBorderQuantities, PizzaOrderDraft, PizzaOrderItem } from '../types/pizzaOrder'
 import { buildPizzaAddition, calculatePizzaOrderTotal, getFlavorQuantity, getPizzaFlavorIds, getPizzaOption, validatePizzaOrder } from '../utils/pizzaOrder'
 
@@ -21,6 +23,12 @@ function withinFlavorLimit(items: PizzaOrderItem[]) {
 export function usePizzaOrderBuilder() {
   const [order, setOrder] = useState<PizzaOrderDraft>(initialOrder)
   const [itemError, setItemError] = useState('')
+  const [confirmationData, setConfirmationData] = useState<OrderConfirmationData | null>(null)
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false)
+  const [isFinalizing, setIsFinalizing] = useState(false)
+  const [finalizeError, setFinalizeError] = useState<string | null>(null)
+  const finalizingRef = useRef(false)
+  const confirmationRef = useRef<OrderConfirmationData | null>(null)
   const nextId = useRef(0)
   const itemsRef = useRef(initialOrder.items)
   const total = useMemo(() => calculatePizzaOrderTotal(order), [order])
@@ -106,8 +114,56 @@ export function usePizzaOrderBuilder() {
     setOrder((current) => ({ ...current, payment: { ...current.payment, [field]: value } }))
   }
 
+  const finalizeOrder = async () => {
+    if (isDemoMode) {
+      setFinalizeError(demoOrderNotice)
+      return false
+    }
+    if (finalizingRef.current) return false
+    if (confirmationRef.current) {
+      setIsConfirmationModalOpen(true)
+      return true
+    }
+    if (!validation.isValid) return false
+
+    // O ref bloqueia dois cliques no mesmo frame, antes de React atualizar os botões.
+    finalizingRef.current = true
+    setIsFinalizing(true)
+    setFinalizeError(null)
+    try {
+      const { createPizzaOrder } = await import('../services/orderService')
+      const confirmation = await createPizzaOrder(order)
+      confirmationRef.current = confirmation
+      setConfirmationData(confirmation)
+      setIsConfirmationModalOpen(true)
+      return true
+    } catch (error) {
+      setFinalizeError(error instanceof UnavailablePizzaItemsError
+        ? error.message
+        : 'Não foi possível enviar o pedido. Seus dados foram mantidos; confira sua conexão e tente novamente.')
+      return false
+    } finally {
+      finalizingRef.current = false
+      setIsFinalizing(false)
+    }
+  }
+
+  const resetOrder = () => {
+    if (finalizingRef.current) return
+    itemsRef.current = initialOrder.items
+    confirmationRef.current = null
+    setOrder(initialOrder)
+    setItemError('')
+    setFinalizeError(null)
+    setConfirmationData(null)
+    setIsConfirmationModalOpen(false)
+  }
+
   return {
     order, total, validation, itemError,
+    confirmationData, isConfirmationModalOpen, isFinalizing, finalizeError,
+    finalizeOrder, resetOrder,
+    closeConfirmationModal: () => setIsConfirmationModalOpen(false),
     addItem, addPizzas, setItemQuantity, setItemBorder, removeItem,
     updateCustomerData, setPaymentMethod, updatePaymentData,
     setObservation: (observation: string) => setOrder((current) => ({ ...current, observation })),

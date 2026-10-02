@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { isDemoMode } from '../../config/demoMode'
 import { beverages, esfihas, halfAndHalfPizzas, pizzaBorders, pizzaOrderRules, pizzas } from '../../data/pizzaMenu'
 import type { MenuOption } from '../../data/pizzaMenu'
 import type { PizzaOrderBuilder } from '../../hooks/usePizzaOrderBuilder'
@@ -15,6 +16,7 @@ import { PizzaBorderModal } from '../order/PizzaBorderModal'
 import { PizzaAddedToast } from '../order/PizzaAddedToast'
 import type { PizzaAdditionNotice } from '../order/PizzaAddedToast'
 import { Button } from '../ui/Button'
+import { FinalizeOrderButton } from '../order/FinalizeOrderButton'
 
 type BuilderSectionProps = { builder: PizzaOrderBuilder }
 const controlClass = 'min-h-12 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 text-base text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]'
@@ -68,7 +70,8 @@ export function BuilderSection({ builder }: BuilderSectionProps) {
             ].map(([id, title], index) => <li key={id}><a href={`#builder-${id}`} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-[var(--surface-muted)]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--brand-primary)] text-sm font-extrabold text-[var(--surface)]">{index + 1}</span><span className="text-sm font-extrabold">{title}</span></a></li>)}
           </ol></nav>
         </aside>
-        <main className="builder-main-panel min-w-0 space-y-10 overflow-x-hidden rounded-3xl p-4 text-[var(--text-primary)] panel-shadow sm:p-6 lg:p-8">
+        <div className="builder-main-panel min-w-0 space-y-10 overflow-x-hidden rounded-3xl p-4 text-[var(--text-primary)] panel-shadow sm:p-6 lg:p-8">
+          <fieldset disabled={builder.isFinalizing || Boolean(builder.confirmationData)} className="min-w-0 space-y-10" aria-label="Montagem e dados do pedido">
           <section id="builder-pizzas" className="scroll-mt-28">
             <p className="text-sm font-extrabold text-[var(--brand-primary)]">1. Pizzas</p>
             <h3 className="font-display text-3xl font-extrabold">Escolha sua pizza</h3>
@@ -101,14 +104,20 @@ export function BuilderSection({ builder }: BuilderSectionProps) {
           </section>
           <CustomerForm customer={builder.order.customer} observation={builder.order.observation} fieldErrors={builder.validation.fieldErrors} stepNumber={4} onCustomerChange={builder.updateCustomerData} onObservationChange={builder.setObservation} />
           <PaymentForm payment={builder.order.payment} fieldErrors={builder.validation.fieldErrors} stepNumber={5} onMethodChange={builder.setPaymentMethod} onPaymentChange={builder.updatePaymentData} />
+          </fieldset>
           <section id="builder-review" className="scroll-mt-28 rounded-3xl bg-[var(--surface-muted)] p-5">
             <p className="text-sm font-extrabold text-[var(--brand-primary)]">6. Revisão</p>
             <h3 className="font-display text-3xl font-extrabold">Confira seu pedido</h3>
-            <p className="mt-2 text-[var(--text-secondary)]">Retirada no local. Esta página é uma demonstração; nenhum pedido será enviado.</p>
+            <p className="mt-2 text-[var(--text-secondary)]">{isDemoMode ? 'Retirada no local. Esta página é uma demonstração; nenhum pedido será enviado.' : builder.confirmationData ? 'Pedido enviado. Consulte a confirmação ou comece um novo pedido por ela.' : 'Retirada no local. Confira os itens, seus dados e o pagamento antes de enviar.'}</p>
+            {!isDemoMode && <div className="mt-5 space-y-4 lg:hidden">
+              <ul className="space-y-2 text-sm">{builder.order.items.map((item) => <li key={item.id}>{item.quantity}× {item.kind === 'pizza' ? 'Pizza grande: ' : item.kind === 'esfiha' ? 'Esfiha: ' : ''}{getPizzaOption(item)?.name}{item.borderId ? `, ${pizzaBorders.find((border) => border.id === item.borderId)?.name}` : ''}</li>)}</ul>
+              <p className="font-extrabold">Total: {formatCurrency(builder.total)}</p>
+              <FinalizeOrderButton validation={builder.validation} isFinalizing={builder.isFinalizing} finalizeError={builder.finalizeError} onFinalize={builder.finalizeOrder} isConfirmed={Boolean(builder.confirmationData)} />
+            </div>}
             <div className="mt-5 lg:hidden"><Button href="#builder-items" variant="soft" className="w-full">Ver itens escolhidos</Button></div>
             <div className="mt-5 hidden lg:block"><Button href="#monte" variant="soft">Voltar ao início e ver resumo</Button></div>
           </section>
-        </main>
+        </div>
         <OrderSummary builder={builder} />
       </div>
       <OrderMobileDock builder={builder} />

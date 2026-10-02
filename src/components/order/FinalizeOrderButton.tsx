@@ -1,13 +1,13 @@
 import { CheckCircle2, LoaderCircle } from 'lucide-react'
 import { demoOrderNotice, isDemoMode } from '../../config/demoMode'
-import type { OrderValidation } from '../../types/order'
 import { Button } from '../ui/Button'
 
 type FinalizeOrderButtonProps = {
-  validation: OrderValidation
+  validation: { isValid: boolean; errors: string[] }
   isFinalizing: boolean
   finalizeError: string | null
   onFinalize: () => void
+  isConfirmed?: boolean
 }
 
 export function FinalizeOrderButton({
@@ -15,6 +15,7 @@ export function FinalizeOrderButton({
   isFinalizing,
   finalizeError,
   onFinalize,
+  isConfirmed = false,
 }: FinalizeOrderButtonProps) {
   if (isDemoMode) {
     return (
@@ -27,7 +28,7 @@ export function FinalizeOrderButton({
     )
   }
 
-  if (!validation.isValid) {
+  if (!validation.isValid && !isConfirmed) {
     return (
       <div className="space-y-3">
         <Button variant="leaf" className="min-h-14 w-full" icon={<CheckCircle2 size={18} />} disabled>
@@ -54,10 +55,10 @@ export function FinalizeOrderButton({
         onClick={onFinalize}
         disabled={isFinalizing}
       >
-        {isFinalizing ? 'Finalizando...' : 'Finalizar pedido'}
+        {isFinalizing ? 'Enviando pedido...' : isConfirmed ? 'Ver confirmação do pedido' : 'Finalizar pedido'}
       </Button>
       {finalizeError && (
-        <div className="rounded-2xl bg-[var(--error-soft)] p-4 text-sm font-bold leading-6 text-[var(--error)]">
+        <div role="alert" className="rounded-2xl bg-[var(--error-soft)] p-4 text-sm font-bold leading-6 text-[var(--error)]">
           {finalizeError}
         </div>
       )}

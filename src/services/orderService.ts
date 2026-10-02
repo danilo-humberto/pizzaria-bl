@@ -1,4 +1,8 @@
-import type { PizzaOrderDocument } from '../types/pizzaOrder'
+import type { PizzaOrderDocument, PizzaOrderDraft } from '../types/pizzaOrder'
+import { demoOrderNotice, isDemoMode } from '../config/demoMode'
+import { buildPizzaOrderDocument } from '../utils/buildPizzaOrderDocument'
+import { getUnavailablePizzaSelections, normalizePizzaAvailability, UnavailablePizzaItemsError } from '../utils/pizzaAvailability'
+import { getPizzaAvailabilityReference } from './pizzaAvailabilityService'
 import { readPizzaOrder } from '../utils/readPizzaOrder'
 import { collection, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { fruits } from '../data/fruits'
@@ -135,9 +139,13 @@ export async function createOrder(orderDraft: OrderDraft): Promise<OrderConfirma
 
 export function listenOrderByTrackingCode(
   trackingCode: string,
-  callback: (order: Order | null) => void,
+  callback: (order: PizzaOrderDocument | null) => void,
   onError?: (error: Error) => void,
 ) {
+  if (!trackingCode || trackingCode.includes('/')) {
+    onError?.(new Error('Link de acompanhamento inválido.'))
+    return () => {}
+  }
   const orderRef = doc(db, ORDERS_COLLECTION, trackingCode)
 
   return onSnapshot(
@@ -148,16 +156,41 @@ export function listenOrderByTrackingCode(
         return
       }
 
-      callback({
-        id: snapshot.id,
-        ...snapshot.data(),
-      } as Order)
+      try {
+        callback(readPizzaOrder(snapshot.data()))
+      } catch {
+        onError?.(new Error('Pedido incompatível com o formato de pizza.'))
+      }
     },
     (error) => {
       console.error('[orderService] Erro ao acompanhar pedido no Firestore:', error)
       onError?.(error)
     },
   )
+}
+
+export async function createPizzaOrder(draft: PizzaOrderDraft): Promise<OrderConfirmationData> {
+  if (isDemoMode) throw new Error(demoOrderNotice)
+
+  const publicCode = `BL-${crypto.randomUUID().slice(0, 8).toUpperCase()}`
+  const trackingCode = `${publicCode}-${crypto.randomUUID()}`
+  const order = buildPizzaOrderDocument(draft, publicCode, trackingCode, serverTimestamp())
+  const orderReference = doc(db, ORDERS_COLLECTION, trackingCode)
+  const availabilityReference = getPizzaAvailabilityReference()
+
+  await runTransaction(db, async (transaction) => {
+    const availabilitySnapshot = await transaction.get(availabilityReference)
+    const availability = normalizePizzaAvailability(availabilitySnapshot.data())
+    const unavailable = getUnavailablePizzaSelections(order.items, availability)
+    if (unavailable.length) throw new UnavailablePizzaItemsError(unavailable)
+
+    // Nunca substitui um pedido existente, inclusive quando o cliente está logado como admin.
+    const existingOrder = await transaction.get(orderReference)
+    if (existingOrder.exists()) throw new Error('Código já utilizado. Tente novamente.')
+    transaction.set(orderReference, order)
+  })
+
+  return { publicCode, trackingCode, trackingUrl: `/pedido/${trackingCode}` }
 }
 
 export function listenOrders(callback: (orders: PizzaOrderDocument[]) => void, onError?: (error: Error) => void) {

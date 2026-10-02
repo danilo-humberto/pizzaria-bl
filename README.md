@@ -1,6 +1,6 @@
 # Pizzaria BL — demonstração local
 
-Esta cópia independente usa a identidade visual e o cardápio da Pizzaria BL. A montagem de pizzas, esfihas e bebidas funciona em demonstração. O administrativo apresenta e opera pedidos no contrato de pizza da etapa 5.
+Esta cópia independente usa a identidade visual e o cardápio da Pizzaria BL. A montagem de pizzas, esfihas e bebidas funciona em demonstração e, com integração habilitada, envia pedidos no mesmo contrato de pizza usado pelo administrativo e acompanhamento.
 
 A integração usa exclusivamente o projeto `pizzaria-bl`, no plano Spark, mantendo a abordagem de validação do açaí. As regras podem ser testadas no emulador com `npm run test:rules` e publicadas com `npm run deploy:rules`.
 
@@ -15,7 +15,7 @@ npm run dev
 
 O modo de demonstração fica ativo sem arquivo `.env` e também com `VITE_DEMO_MODE=true`. Todos os ingredientes aparecem disponíveis localmente; as restrições de combinação e os cálculos de preço continuam ativos. É possível montar o pedido, preencher os dados e consultar o total, mas pedidos não são enviados nem salvos. O administrativo e o acompanhamento de pedidos exibem um aviso de indisponibilidade.
 
-Mantenha `VITE_DEMO_MODE=true` até concluir as etapas 6 e 7. Configuração ausente, incompleta ou apontando para outro projeto mantém a demonstração mesmo com a flag `false`. As regras da pizzaria não aceitam o formato antigo de pedidos de açaí.
+Mantenha `VITE_DEMO_MODE=true` para explorar sem gravar. Para validar a integração com pedidos fictícios no ambiente configurado da pizzaria, use `VITE_DEMO_MODE=false` e a configuração Firebase completa. Configuração ausente, incompleta ou apontando para outro projeto mantém a demonstração mesmo com a flag `false`. As regras da pizzaria não aceitam o formato antigo de pedidos de açaí. A publicação e liberação a clientes reais pertencem à etapa 8.
 
 ## Verificação local
 
@@ -30,7 +30,17 @@ O build também executa o TypeScript. O projeto não possui script de lint.
 
 - A montagem fica somente na memória: recarregar a página reinicia o pedido.
 - O envio, o acompanhamento e o administrativo não funcionam no modo de demonstração.
-- O administrativo está adaptado ao contrato Firebase de pizza; a conexão do envio/acompanhamento permanece para a etapa 7.
+- A integração foi preparada para validação com pedidos fictícios; configuração remota, contas reais e publicação exigem conferência no ambiente de destino.
+
+## Envio e acompanhamento de pizzas
+
+Fora da demonstração, a finalização converte a montagem em `PizzaOrderDocument` (`schemaVersion: 1`), calcula valores em centavos e grava em `orders/{trackingCode}`. A transação consulta `storeSettings/pizzaAvailability` antes de gravar; se houver esgotamento, inclusive de um sabor da pizza meio a meio, o envio é recusado com os nomes das opções afetadas. As regras existentes também verificam a disponibilidade na gravação.
+
+O formulário fica bloqueado durante o envio. Cliques repetidos não iniciam outro envio, e a confirmação aparece somente após sucesso da transação. Falhas conservam itens, dados e pagamento para ajuste ou nova tentativa. Após sucesso, o botão reabre a confirmação sem gravar novamente; “Fazer novo pedido” limpa a montagem. Essa proteção vale para a sessão atual, sem persistência de rascunho entre recargas.
+
+O código visível começa com `BL-`; o link usa também um UUID aleatório. `/pedido/:trackingCode` lê os nomes, bordas, quantidades e valores persistidos, acompanha os estados de retirada e cancelamento, distingue pedido inexistente de erro e permite tentar novamente. O acesso público por link mantém o modelo aprovado na etapa 5. Preços e correspondência entre linhas e IDs continuam validados no cliente, conforme a limitação já existente das regras.
+
+Os testes de integração (`npm run test:rules`) usam somente o emulador `demo-pizzaria-bl` e incluem envio anônimo, leitura administrativa, outra sessão acompanhando status e esgotamento antes do envio. Para a interação no navegador, `node tests/checkout.browser.mjs` usa o Playwright disponível na máquina (ou indicado por `PLAYWRIGHT_MODULE_PATH`), com transporte simulado e sem conexão Firebase. Não há nova dependência no projeto.
 
 ## Administrativo de pizzas
 
@@ -40,9 +50,9 @@ O painel lê `PizzaOrderDocument` (`schemaVersion: 1`), mostra todas as linhas c
 
 Os indicadores por categoria somam unidades, sem duplicar pizzas meio a meio nem incluir cancelados. A restrição de exibição da métrica interna continua usando `VITE_SIZE_METRICS_ALLOWED_EMAIL`, preservada por compatibilidade.
 
-A disponibilidade usa `storeSettings/pizzaAvailability`: listas de IDs esgotados em `pizzaFlavorIds`, `borderIds`, `esfihaIds` e `beverageIds`, com `updatedAt` e `updatedBy`. Documento ausente significa tudo disponível. A gravação usa transação para preservar alterações concorrentes. Esgotar um sabor bloqueia a seleção declarada desse sabor, inclusive meio a meio, pelas regras já existentes. A montagem pública ainda não acompanha essas mudanças nesta fase.
+A disponibilidade usa `storeSettings/pizzaAvailability`: listas de IDs esgotados em `pizzaFlavorIds`, `borderIds`, `esfihaIds` e `beverageIds`, com `updatedAt` e `updatedBy`. Documento ausente significa tudo disponível. A gravação usa transação para preservar alterações concorrentes. Esgotar um sabor bloqueia a seleção declarada desse sabor, inclusive meio a meio. A montagem pública confere a disponibilidade ao enviar; o catálogo não oculta opções esgotadas durante a escolha.
 
-Valide com pedidos fictícios e `npm run test:rules` no emulador `demo-pizzaria-bl`. Não habilite pedidos reais antes da integração da etapa 7.
+Valide com pedidos fictícios e `npm run test:rules` no emulador `demo-pizzaria-bl`. A liberação de pedidos reais fica para a etapa 8.
 
 ## Documentação original
 

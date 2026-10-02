@@ -6,6 +6,7 @@ import { ContactSection } from '../components/landing/ContactSection'
 import { HeroSection } from '../components/landing/HeroSection'
 import { useGsapReveal } from '../hooks/useGsapReveal'
 import { usePizzaOrderBuilder } from '../hooks/usePizzaOrderBuilder'
+import { OrderConfirmationModal } from '../components/order/OrderConfirmationModal'
 
 export function LandingPage() {
   const pageRef = useRef<HTMLDivElement>(null)
@@ -22,6 +23,7 @@ export function LandingPage() {
         <ContactSection />
       </main>
       <Footer />
+      <OrderConfirmationModal isOpen={builder.isConfirmationModalOpen} publicCode={builder.confirmationData?.publicCode} trackingUrl={builder.confirmationData?.trackingUrl} onClose={builder.closeConfirmationModal} onNewOrder={builder.resetOrder} />
     </div>
   )
 }

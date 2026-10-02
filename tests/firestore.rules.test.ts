@@ -4,11 +4,14 @@ import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestE
 import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore'
 import { buildPizzaOrderDocument } from '../src/utils/buildPizzaOrderDocument'
 import { emptyPizzaAvailability } from '../src/types/pizzaAvailability'
-import { listenOrders, updateOrderStatus } from '../src/services/orderService'
+import { createPizzaOrder, listenOrderByTrackingCode, listenOrders, updateOrderStatus } from '../src/services/orderService'
 import { setPizzaAvailability, listenPizzaAvailability } from '../src/services/pizzaAvailabilityService'
+import type { PizzaOrderDraft } from '../src/types/pizzaOrder'
+import { calculatePizzaOrderTotal } from '../src/utils/pizzaOrder'
 
 const session = vi.hoisted(() => ({ db: null as any, auth: { currentUser: null as { uid: string } | null } }))
 vi.mock('../src/lib/firebase', () => ({ get db() { return session.db }, auth: session.auth }))
+vi.mock('../src/config/demoMode', () => ({ isDemoMode: false, demoOrderNotice: 'Demonstração: pedidos não são enviados' }))
 
 // Só roda com emulador local, sempre em projeto demo sem recursos reais.
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST
@@ -68,6 +71,67 @@ suite('Firestore — permissões e contrato da pizzaria', () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'orders', 'cancel-order'), { ...order(), trackingCode: 'cancel-order' }))
     await updateOrderStatus('cancel-order', 'cancelled')
     expect((await getDoc(doc(session.db, 'orders', 'cancel-order'))).data()?.status).toBe('cancelled')
+  })
+  const checkoutDraft: PizzaOrderDraft = {
+    items: [
+      { id: '1', kind: 'pizza', optionId: 'calabresa-mussarela', quantity: 2, borderId: 'catupiry' },
+      { id: '2', kind: 'esfiha', optionId: 'frango', quantity: 8 },
+      { id: '3', kind: 'beverage', optionId: 'agua-mineral', quantity: 3 },
+    ],
+    customer: { name: 'Cliente integração', phone: '(81) 99999-1234' },
+    payment: { method: 'pix', needsChange: false, changeFor: '' }, observation: 'Bem assada.',
+  }
+
+  it('envio público chega ao admin com mesmos itens e total; outra sessão acompanha todos os status', async () => {
+    session.db = anonymous()
+    const confirmation = await createPizzaOrder(checkoutDraft)
+    const expected = buildPizzaOrderDocument(checkoutDraft, confirmation.publicCode, confirmation.trackingCode, null)
+    const persisted = (await getDoc(doc(session.db, 'orders', confirmation.trackingCode))).data()!
+    expect(persisted.items).toEqual(expected.items)
+    expect(persisted.total).toBe(calculatePizzaOrderTotal(checkoutDraft))
+
+    session.db = signed(adminIds[0])
+    const adminOrders = await new Promise<Parameters<Parameters<typeof listenOrders>[0]>[0]>((resolve, reject) => {
+      const stop = listenOrders((orders) => { stop(); resolve(orders) }, reject)
+    })
+    expect(adminOrders.find((order) => order.trackingCode === confirmation.trackingCode)?.items).toEqual(persisted.items)
+    expect(adminOrders.find((order) => order.trackingCode === confirmation.trackingCode)?.total).toBe(persisted.total)
+
+    session.db = anonymous()
+    let nextStatus: ((status: string) => void) | undefined
+    const stop = listenOrderByTrackingCode(confirmation.trackingCode, (order) => {
+      expect(order?.items).toEqual(persisted.items)
+      nextStatus?.(order!.status)
+    })
+    try {
+      for (const status of ['preparing', 'ready_for_pickup', 'completed', 'cancelled'] as const) {
+        const received = new Promise<string>((resolve) => { nextStatus = (value) => { if (value === status) resolve(value) } })
+        session.db = signed(adminIds[0])
+        await updateOrderStatus(confirmation.trackingCode, status)
+        expect(await received).toBe(status)
+      }
+    } finally { stop() }
+  }, 15000)
+
+  it.each([
+    ['pizzaFlavorIds', 'mussarela'], ['borderIds', 'catupiry'],
+    ['esfihaIds', 'frango'], ['beverageIds', 'agua-mineral'],
+  ] as const)('revalida %s esgotado por outra sessão antes de enviar', async (category, id) => {
+    session.db = signed(adminIds[0])
+    session.auth.currentUser = { uid: adminIds[0] }
+    await setPizzaAvailability(category, id, false)
+    session.db = anonymous()
+    session.auth.currentUser = null
+    await expect(createPizzaOrder(checkoutDraft)).rejects.toThrow('Indisponível no momento')
+    expect((await getDocs(collection(signed(adminIds[0]), 'orders'))).size).toBe(1)
+  })
+
+  it('acompanhamento público sinaliza código inexistente', async () => {
+    session.db = anonymous()
+    const result = await new Promise((resolve, reject) => {
+      const stop = listenOrderByTrackingCode('does-not-exist', (order) => { stop(); resolve(order) }, reject)
+    })
+    expect(result).toBeNull()
   })
   it('serviço de disponibilidade cria, preserva outras categorias e restaura opções', async () => {
     session.db = signed(adminIds[0])

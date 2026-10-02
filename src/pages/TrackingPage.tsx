@@ -12,15 +12,10 @@ import { useParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { paymentMethods } from '../data/paymentMethods'
 import { listenOrderByTrackingCode } from '../services/orderService'
-import type { Order, OrderStatus } from '../types/order'
+import type { OrderStatus } from '../types/order'
+import type { PizzaOrderDocument } from '../types/pizzaOrder'
 import { formatCurrency } from '../utils/formatCurrency'
-import {
-  formatOrderPortions,
-  formatOrderSyrup,
-  getOrderFruitPortions,
-  getOrderIceCreamFlavors,
-  getOrderToppingPortions,
-} from '../utils/orderDisplay'
+import { formatPizzaOrderLine } from '../utils/pizzaOrderDisplay'
 
 const statusSteps: Array<{
   id: Exclude<OrderStatus, 'cancelled'>
@@ -57,13 +52,13 @@ const statusLabels: Record<OrderStatus, string> = {
   cancelled: 'Cancelado',
 }
 
-function getPaymentLabel(method?: Order['payment']['method']) {
+function getPaymentLabel(method?: PizzaOrderDocument['payment']['method']) {
   return paymentMethods.find((paymentMethod) => paymentMethod.id === method)?.name ?? 'Não informado'
 }
 
 function getStatusStepStyle(status: OrderStatus, stepId: Exclude<OrderStatus, 'cancelled'>) {
   if (status === 'cancelled') {
-    return 'border-[var(--cream-200)] bg-[var(--cream-100)] text-[var(--ink-500)]'
+    return 'border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-muted)]'
   }
 
   const currentIndex = statusSteps.findIndex((step) => step.id === status)
@@ -72,19 +67,23 @@ function getStatusStepStyle(status: OrderStatus, stepId: Exclude<OrderStatus, 'c
   const isCompleted = stepIndex < currentIndex
 
   if (isActive || isCompleted) {
-    return 'border-[var(--leaf-700)] bg-[oklch(72%_0.14_126_/_12%)] text-[var(--leaf-700)]'
+    return 'border-[var(--success)] bg-[var(--success-soft)] text-[var(--success)]'
   }
 
-  return 'border-[var(--cream-200)] bg-[var(--cream-100)] text-[var(--ink-500)]'
+  return 'border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-muted)]'
 }
 
 export function TrackingPage() {
   const { trackingCode } = useParams()
-  const [order, setOrder] = useState<Order | null>(null)
+  const [order, setOrder] = useState<PizzaOrderDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    setOrder(null)
+    setError(null)
     if (!trackingCode) {
       setError('Link de acompanhamento inválido.')
       setIsLoading(false)
@@ -98,35 +97,36 @@ export function TrackingPage() {
       trackingCode,
       (orderData) => {
         setOrder(orderData)
+        setError(null)
         setIsLoading(false)
       },
       () => {
+        setOrder(null)
         setError('Não foi possível carregar este pedido agora.')
         setIsLoading(false)
       },
     )
 
     return unsubscribe
-  }, [trackingCode])
+  }, [trackingCode, retry])
 
   const status = order?.status ?? 'received'
-  const selectedIceCreamFlavors = order ? getOrderIceCreamFlavors(order.items) : []
 
   return (
-    <div className="tracking-page-bg min-h-dvh text-[var(--ink-900)]">
+    <div className="pizzaria-theme bg-[var(--surface-dark)] min-h-dvh text-[var(--text-primary)]">
       <main className="grid min-h-dvh place-items-center px-4 py-5 sm:px-6 lg:px-8">
-        <section className="w-full max-w-4xl overflow-hidden rounded-[2rem] bg-[var(--cream-50)] panel-shadow">
-          <div className="bg-[linear-gradient(135deg,var(--plum-800),var(--berry-600))] px-6 py-6 text-[var(--cream-50)] sm:px-8">
-            <p className="flex items-center gap-2 text-sm font-extrabold text-[oklch(94%_0.02_326)]">
+        <section className="w-full max-w-4xl overflow-hidden rounded-[2rem] bg-[var(--surface)] panel-shadow">
+          <div className="bg-[linear-gradient(135deg,var(--surface-dark-raised),var(--brand-primary))] px-6 py-6 text-[var(--surface)] sm:px-8">
+            <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--contact-text)]">
               <Clock size={18} />
               Acompanhamento do pedido
             </p>
             <h1 className="mt-3 font-display text-4xl font-extrabold leading-tight sm:text-5xl">
-              {isLoading ? 'Carregando...' : order?.publicCode ?? 'Pedido não encontrado'}
+              {isLoading ? 'Carregando...' : error ? 'Acompanhamento indisponível' : order?.publicCode ?? 'Pedido não encontrado'}
             </h1>
-            <p className="mt-2 max-w-2xl leading-7 text-[oklch(96%_0.02_326)]">
+            <p aria-live="polite" className="mt-2 max-w-2xl leading-7 text-[var(--contact-text)]">
               {order
-                ? `Status atual: ${statusLabels[status]}. Seu pedido será preparado para retirada no local.`
+                ? `Status atual: ${statusLabels[status]}. Retirada no local.`
                 : 'Confira seu link de acompanhamento para ver os detalhes do pedido.'}
             </p>
           </div>
@@ -141,12 +141,15 @@ export function TrackingPage() {
             )}
 
             {!isLoading && error && (
-              <StateMessage
-                icon={<AlertTriangle size={22} />}
-                title="Não conseguimos carregar"
-                description={error}
-                tone="error"
-              />
+              <div className="space-y-4">
+                <StateMessage
+                  icon={<AlertTriangle size={22} />}
+                  title="Não conseguimos carregar"
+                  description={error}
+                  tone="error"
+                />
+                <Button onClick={() => setRetry((value) => value + 1)}>Tentar novamente</Button>
+              </div>
             )}
 
             {!isLoading && !error && !order && (
@@ -161,7 +164,7 @@ export function TrackingPage() {
             {!isLoading && !error && order && (
               <>
                 {status === 'cancelled' && (
-                  <div className="rounded-2xl border border-[var(--berry-600)] bg-[oklch(45%_0.17_346_/_10%)] p-4 text-sm font-bold leading-6 text-[var(--berry-600)]">
+                  <div className="rounded-2xl border border-[var(--error)] bg-[var(--error-soft)] p-4 text-sm font-bold leading-6 text-[var(--error)]">
                     Este pedido foi cancelado. Fale com a loja se precisar de ajuda.
                   </div>
                 )}
@@ -170,9 +173,10 @@ export function TrackingPage() {
                   {statusSteps.map((step) => (
                     <div
                       key={step.id}
+                      aria-current={step.id === status ? 'step' : undefined}
                       className={`rounded-2xl border p-4 ${getStatusStepStyle(status, step.id)}`}
                     >
-                      <span className="mb-3 grid h-10 w-10 place-items-center rounded-full bg-[var(--cream-50)]">
+                      <span className="mb-3 grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]">
                         {step.icon}
                       </span>
                       <p className="text-sm font-extrabold leading-5">{step.label}</p>
@@ -181,12 +185,12 @@ export function TrackingPage() {
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-2xl bg-[var(--cream-100)] p-5">
-                    <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--ink-900)]">
+                  <div className="rounded-2xl bg-[var(--surface-muted)] p-5">
+                    <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
                       <User size={18} />
                       Dados do pedido
                     </p>
-                    <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--ink-700)]">
+                    <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
                       <InfoLine label="Cliente" value={order.customer.name} />
                       <InfoLine label="Pagamento" value={getPaymentLabel(order.payment.method)} />
                       {order.payment.method === 'cash' && (
@@ -199,37 +203,24 @@ export function TrackingPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-[var(--cream-100)] p-5">
-                    <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--ink-900)]">
+                  <div className="rounded-2xl bg-[var(--surface-muted)] p-5">
+                    <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
                       <ReceiptText size={18} />
                       Resumo do pedido
                     </p>
-                    <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--ink-700)]">
-                      <InfoLine label="Produto" value={order.items.productName ?? 'Não informado'} />
-                      <InfoLine label="Tamanho" value={order.items.size ?? 'Não informado'} />
-                      {selectedIceCreamFlavors.length > 0 && (
-                        <InfoLine
-                          label={selectedIceCreamFlavors.length > 1 ? 'Sabores' : 'Sabor'}
-                          value={selectedIceCreamFlavors.join(', ')}
-                        />
-                      )}
-                      <InfoLine
-                        label="Frutas"
-                        value={formatOrderPortions(getOrderFruitPortions(order.items))}
-                      />
-                      <InfoLine
-                        label="Guloseimas"
-                        value={formatOrderPortions(getOrderToppingPortions(order.items))}
-                      />
-                      <InfoLine label="Calda" value={formatOrderSyrup(order.items)} />
-                      <InfoLine label="Observação" value={order.items.observation ?? 'Sem observação'} />
+                    <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
+                      <ul className="space-y-3">{order.items.lines.map((line, index) => <li key={index}>
+                        <p className="font-bold">{formatPizzaOrderLine(line)}</p>
+                        <p>{formatCurrency(line.unitPriceCents / 100)} por unidade · {formatCurrency(line.subtotalCents / 100)}</p>
+                      </li>)}</ul>
+                      <InfoLine label="Observação" value={order.items.observation || 'Sem observação'} />
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-[var(--cream-100)] p-5">
-                  <p className="text-sm font-extrabold text-[var(--ink-900)]">Código de acompanhamento</p>
-                  <p className="mt-1 break-all text-sm leading-6 text-[var(--ink-700)]">
+                <div className="rounded-2xl bg-[var(--surface-muted)] p-5">
+                  <p className="text-sm font-extrabold text-[var(--text-primary)]">Código de acompanhamento</p>
+                  <p className="mt-1 break-all text-sm leading-6 text-[var(--text-secondary)]">
                     {trackingCode ?? 'Código não informado na URL.'}
                   </p>
                 </div>
@@ -258,10 +249,11 @@ type StateMessageProps = {
 function StateMessage({ icon, title, description, tone = 'default' }: StateMessageProps) {
   return (
     <div
+      role={tone === 'error' ? 'alert' : 'status'}
       className={`rounded-2xl border p-5 ${
         tone === 'error'
-          ? 'border-[var(--berry-600)] bg-[oklch(45%_0.17_346_/_10%)] text-[var(--berry-600)]'
-          : 'border-[var(--cream-200)] bg-[var(--cream-100)] text-[var(--ink-700)]'
+          ? 'border-[var(--error)] bg-[var(--error-soft)] text-[var(--error)]'
+          : 'border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-secondary)]'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -284,8 +276,8 @@ type InfoLineProps = {
 function InfoLine({ label, value, strong = false }: InfoLineProps) {
   return (
     <div className="flex gap-3">
-      <span className="w-24 shrink-0 font-extrabold text-[var(--ink-900)]">{label}</span>
-      <span className={strong ? 'font-extrabold text-[var(--leaf-700)]' : 'text-[var(--ink-700)]'}>
+      <span className="w-24 shrink-0 font-extrabold text-[var(--text-primary)]">{label}</span>
+      <span className={`min-w-0 break-words ${strong ? 'font-extrabold text-[var(--success)]' : 'text-[var(--text-secondary)]'}`}>
         {value}
       </span>
     </div>

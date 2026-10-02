@@ -5,7 +5,7 @@ import type { PizzaOrderDocument, PizzaOrderDraft } from '../types/pizzaOrder'
 import { parseBRLCurrencyInput } from './formatCurrency'
 import { getPizzaFlavorIds, getPizzaItemTotalCents, getPizzaOption, validatePizzaOrder } from './pizzaOrder'
 
-// A etapa de integração fornecerá serverTimestamp() sem inicializar Firebase aqui.
+// Recebe serverTimestamp() do serviço sem inicializar Firebase neste conversor.
 export function buildPizzaOrderDocument(
   draft: PizzaOrderDraft,
   publicCode: string,

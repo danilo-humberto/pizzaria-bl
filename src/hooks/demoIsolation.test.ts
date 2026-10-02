@@ -10,6 +10,8 @@ import { usePizzaOrderBuilder } from './usePizzaOrderBuilder'
 import { BuilderSection } from '../components/landing/BuilderSection'
 import type { OrderBuilder } from './useOrderBuilder'
 
+vi.hoisted(() => vi.stubEnv('VITE_DEMO_MODE', 'true'))
+
 const { availabilityServiceLoads, orderServiceLoads } = vi.hoisted(() => ({
   availabilityServiceLoads: vi.fn(),
   orderServiceLoads: vi.fn(),
@@ -22,7 +24,7 @@ vi.mock('../services/ingredientAvailabilityService', () => {
 
 vi.mock('../services/orderService', () => {
   orderServiceLoads()
-  return { createOrder: vi.fn() }
+  return { createOrder: vi.fn(), createPizzaOrder: vi.fn() }
 })
 
 vi.mock('../utils/validateOrder', () => ({
@@ -84,5 +86,24 @@ describe('isolamento da demonstração', () => {
     expect(html).toMatch(/disabled=""[^>]*>.*?Finalizar pedido/s)
     expect(orderServiceLoads).not.toHaveBeenCalled()
     expect(availabilityServiceLoads).not.toHaveBeenCalled()
+  })
+
+  it('bloqueia também a finalização de pizza sem carregar o serviço ou confirmar', async () => {
+    let builder: ReturnType<typeof usePizzaOrderBuilder> | undefined
+    function CaptureBuilder() {
+      builder = usePizzaOrderBuilder()
+      if (!builder.order.customer.name) {
+        builder.addItem('pizza', 'mussarela', 1)
+        builder.updateCustomerData('name', 'Cliente demonstração')
+        builder.updateCustomerData('phone', '(81) 99999-1234')
+        builder.setPaymentMethod('pix')
+      }
+      return null
+    }
+    renderToString(createElement(CaptureBuilder))
+    expect(builder!.validation.isValid).toBe(true)
+    expect(await builder!.finalizeOrder()).toBe(false)
+    expect(builder!.confirmationData).toBeNull()
+    expect(orderServiceLoads).not.toHaveBeenCalled()
   })
 })
