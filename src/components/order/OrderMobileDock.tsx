@@ -12,7 +12,7 @@ export function OrderMobileDock({ builder }: OrderMobileDockProps) {
   useEffect(() => {
     const section = document.getElementById('monte')
     if (!section) return
-    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { rootMargin: '0px 0px -18% 0px', threshold: 0.08 })
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { rootMargin: '0px 0px -18% 0px', threshold: 0 })
     observer.observe(section)
     return () => observer.disconnect()
   }, [])
